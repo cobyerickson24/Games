@@ -78,11 +78,15 @@ button { font: inherit; color: inherit; }
 .layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 28px; margin-top: 22px; align-items: start; }
 .table { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); z-index: 5; }
 @media (max-width: 880px) {
-  html, body { height: 100%; }
-  .app { height: 100%; height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; padding-block: 8px 10px; }
+  /* phones: pin the page to the screen so a drag can't bounce it, resize Safari's bars, or pull-to-refresh */
+  :root { padding-top: 0 !important; padding-bottom: 0 !important; }
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  body { position: fixed; inset: 0; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .app { height: 100%; display: flex; flex-direction: column; padding-block: 8px 10px; }
+  .stage { touch-action: none; }
   .layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 10px; margin-top: 10px; align-items: stretch; }
   .table { position: static; display: flex; flex-direction: column; min-height: 0; }
-  .card { min-height: 0; overflow: auto; border-radius: 14px; padding: 0 2px 6px; -webkit-overflow-scrolling: touch; }
+  .card { min-height: 0; overflow: auto; overscroll-behavior: contain; border-radius: 14px; padding: 0 2px 6px; -webkit-overflow-scrolling: touch; }
   .top { gap: 8px; flex-wrap: nowrap; }
   .brand { gap: 8px; }
   .brand h1 { font-size: 19px; }
@@ -311,11 +315,11 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
       <div class="mark" aria-hidden="true"><i></i><span></span><i></i><span></span><i></i><span></span><i></i><span></span><i></i></div>
       <div>
         <h1>Pips<span>.</span></h1>
-        <p>Five dice ¬∑ thirteen boxes</p>
+        <p>Five dice &#xb7; thirteen boxes</p>
       </div>
     </div>
     <div class="tools">
-      <span class="stat">Best <b id="best">‚Äî</b></span>
+      <span class="stat">Best <b id="best">&#x2014;</b></span>
       <button class="ghost" id="soundBtn" aria-pressed="true">Sound on</button>
       <button class="ghost" id="rulesBtn">Rules</button>
       <button class="ghost" id="newBtn">New game</button>
@@ -326,7 +330,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     <section class="table" aria-label="Dice tray">
       <div class="turn">
         <h2 id="who">Your turn</h2>
-        <span class="round"><button class="mode" id="modeBtn"></button> ¬∑ Round <b id="round">1</b> of 13</span>
+        <span class="round"><button class="mode" id="modeBtn"></button> &#xb7; Round <b id="round">1</b> of 13</span>
       </div>
       <div class="board" id="board" hidden></div>
       <div class="seat" id="seatTop"></div>
@@ -342,7 +346,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
       </div>
       <p class="msg" id="msg" aria-live="polite"></p>
       <div class="seat" id="seatBottom"></div>
-      <p class="keys"><kbd>Space</kbd> throw ¬∑ <kbd>1</kbd>‚Äì<kbd>5</kbd> hold a die ¬∑ click a die in the tray to hold it</p>
+      <p class="keys"><kbd>Space</kbd> throw &#xb7; <kbd>1</kbd>&#x2013;<kbd>5</kbd> hold a die &#xb7; click a die in the tray to hold it</p>
     </section>
 
     <section class="card" aria-label="Scorecard">
@@ -375,7 +379,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     <h3 id="inviteTitle">Play a friend online</h3>
     <p id="inviteText">Send this link to your opponent. The game starts as soon as they open it on their phone.</p>
     <div class="invlink" id="inviteBox" hidden><input id="inviteLink" readonly aria-label="Invite link"></div>
-    <p class="invstatus" id="inviteStatus">Setting up a game room‚Ä¶</p>
+    <p class="invstatus" id="inviteStatus">Setting up a game room&#x2026;</p>
     <div class="row">
       <button class="ghost" id="inviteCancel">Cancel</button>
       <button class="roll" id="inviteShare" hidden>Share link</button>
@@ -424,12 +428,12 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     { id:'fours',  label:'Fours',  note:'sum of 4s', n:4 },
     { id:'fives',  label:'Fives',  note:'sum of 5s', n:5 },
     { id:'sixes',  label:'Sixes',  note:'sum of 6s', n:6 },
-    { id:'three',  label:'Three of a kind', s:'3 of a kind', note:'sum', g:'3√ó' },
-    { id:'four',   label:'Four of a kind', s:'4 of a kind',  note:'sum', g:'4√ó' },
+    { id:'three',  label:'Three of a kind', s:'3 of a kind', note:'sum', g:'3\u00d7' },
+    { id:'four',   label:'Four of a kind', s:'4 of a kind',  note:'sum', g:'4\u00d7' },
     { id:'full',   label:'Full house', s:'Full house',      note:'25',  g:'FH' },
-    { id:'small',  label:'Small straight', s:'Sm. straight',  note:'30',  g:'4‚Üí' },
-    { id:'large',  label:'Large straight', s:'Lg. straight',  note:'40',  g:'5‚Üí' },
-    { id:'five',   label:'Five of a kind', s:'5 of a kind',  note:'50',  g:'5√ó' },
+    { id:'small',  label:'Small straight', s:'Sm. straight',  note:'30',  g:'4\u2192' },
+    { id:'large',  label:'Large straight', s:'Lg. straight',  note:'40',  g:'5\u2192' },
+    { id:'five',   label:'Five of a kind', s:'5 of a kind',  note:'50',  g:'5\u00d7' },
     { id:'chance', label:'Chance',          note:'sum', g:'?' },
   ];
   const LOWER = CATS.filter(c => !c.n).map(c => c.id);
@@ -781,9 +785,11 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
       plane([0, 0, z1], [0, 1, 0], Math.PI),
     ];
   }
+  let lastFit = '';
   function fit() {
     const w = stage.clientWidth, h = stage.clientHeight;
-    if (!w || !h) return;
+    if (!w || !h || w + 'x' + h === lastFit) return; // nothing changed: don't touch the canvas
+    lastFit = w + 'x' + h;
     renderer.setSize(w, h, false);
     const a = w / h;
     camera.aspect = a;
@@ -812,6 +818,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     }
     scene.fog.near = dist + 8; scene.fog.far = dist + 26;
     camera.updateProjectionMatrix();
+    renderer.render(scene, camera); // redraw now, so a resized canvas never shows a blank frame
   }
   function onHit(i, e) {
     const b = bodies[i];
@@ -967,7 +974,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
   /* ================= game flow ================= */
   function settled() {
     rolling = false; state.rolled = true;
-    if (trayPending && renderer) { buildTray(trayPending); trayPending = null; keepDiceInside(); fit(); }
+    if (trayPending && renderer) { buildTray(trayPending); trayPending = null; keepDiceInside(); lastFit = ''; fit(); }
     if (Math.max(...counts(vals())) === 5) {
       const p = state.players[state.cur];
       flash(p.scores.five === 50 ? 'Five of a kind again! +100' : 'Five of a kind!');
@@ -1077,17 +1084,17 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
   async function botTurn() {
     if (!isBot() || botActing) return;
     const g = gameId, p = state.players[state.cur];
-    botActing = true; botMsg = 'The computer is picking up the dice‚Ä¶'; render();
+    botActing = true; botMsg = 'The computer is picking up the dice\u2026'; render();
     await sleep(700);
     while (true) {
       if (state.rollsLeft === 0) break;
       while (anyOpen()) { await sleep(300); if (g !== gameId) return; }
       if (g !== gameId) return;
-      botMsg = 'The computer throws‚Ä¶';
+      botMsg = 'The computer throws\u2026';
       const w = new Promise(r => settleWaiters.push(r));
       doThrow(true);
       await w; if (g !== gameId) return;
-      botMsg = 'The computer is thinking‚Ä¶'; render();
+      botMsg = 'The computer is thinking\u2026'; render();
       await sleep(800); if (g !== gameId) return;
       if (state.rollsLeft === 0) break;
       const mask = chooseHold(p, vals());
@@ -1111,14 +1118,14 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     const p = state.players[state.cur], multi = state.players.length > 1;
     $('who').innerHTML = state.over ? 'Final card' : p.bot ? "<em>Computer</em>'s turn" : online() ? (myTurn() ? 'Your turn' : "<em>Opponent</em>'s turn") : multi && state.mode !== 'bot' ? `<em>${p.name}</em>'s turn` : 'Your turn';
     $('round').textContent = state.round;
-    $('modeBtn').textContent = online() ? (net.connected ? 'Online' : 'Online ¬∑ offline') : state.mode === 'bot' ? 'vs Computer' : state.mode === '1' ? 'Solo' : state.players.length + ' players';
+    $('modeBtn').textContent = online() ? (net.connected ? 'Online' : 'Online \u00b7 offline') : state.mode === 'bot' ? 'vs Computer' : state.mode === '1' ? 'Solo' : state.players.length + ' players';
     $('modeBtn').title = 'Change mode (starts a new game)';
     const tots = state.players.map(pl => totals(pl).total), lead = Math.max(...tots);
     $('board').hidden = !multi;
     const seat = i => {
       const pl = state.players[i], on = i === state.cur && !state.over;
       const mine = !pl.bot && (!online() || i === net.me);
-      return `<div class="who ${on ? 'cur' : ''}"><span class="av">${tagOf(i)}</span><span class="nm"><span>${nameOf(i)}${on ? (mine ? ' ¬∑ your turn' : ' ¬∑ throwing') : ''}</span><small>${pl.lastNote || '&nbsp;'}</small></span><b>${tots[i]}</b></div>`;
+      return `<div class="who ${on ? 'cur' : ''}"><span class="av">${tagOf(i)}</span><span class="nm"><span>${nameOf(i)}${on ? (mine ? ' \u00b7 your turn' : ' \u00b7 throwing') : ''}</span><small>${pl.lastNote || '&nbsp;'}</small></span><b>${tots[i]}</b></div>`;
     };
     const meIdx = online() ? net.me : 0;
     $('seatTop').innerHTML = state.players.map((_, i) => i).filter(i => i !== meIdx).map(seat).join('');
@@ -1126,9 +1133,9 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     $('seatBottom').innerHTML = seat(meIdx);
     $('board').innerHTML = state.players.map((pl, i) => {
       const on = i === state.cur && !state.over;
-      return `<div class="chip ${on ? 'cur' : ''} ${tots[i] === lead && lead > 0 ? 'lead' : ''}"><div><span>${nameOf(i)}${on ? ' ¬∑ throwing' : ''}</span><small>${pl.lastNote || ''}</small></div><b>${tots[i]}</b></div>`;
+      return `<div class="chip ${on ? 'cur' : ''} ${tots[i] === lead && lead > 0 ? 'lead' : ''}"><div><span>${nameOf(i)}${on ? ' \u00b7 throwing' : ''}</span><small>${pl.lastNote || ''}</small></div><b>${tots[i]}</b></div>`;
     }).join('');
-    $('best').textContent = best === null ? '‚Äî' : best;
+    $('best').textContent = best === null ? '\u2014' : best;
     $('soundBtn').textContent = muted ? 'Sound off' : 'Sound on';
     $('soundBtn').setAttribute('aria-pressed', String(!muted));
     [...$('lights').querySelectorAll('i')].forEach((el, k) => el.classList.toggle('on', k < state.rollsLeft));
@@ -1136,7 +1143,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
 
     const rb = $('rollBtn');
     rb.disabled = rolling || state.over || state.rollsLeft === 0 || locked();
-    rb.textContent = state.over ? 'Game over' : p.bot ? 'Computer‚Äôs turn' : remoteTurn() ? (net.connected ? 'Their turn' : 'Waiting‚Ä¶') : rolling ? 'Rolling‚Ä¶' : state.rollsLeft === 0 ? 'Pick a box' : state.rolled ? 'Throw again' : 'Throw';
+    rb.textContent = state.over ? 'Game over' : p.bot ? 'Computer\u2019s turn' : remoteTurn() ? (net.connected ? 'Their turn' : 'Waiting\u2026') : rolling ? 'Rolling\u2026' : state.rollsLeft === 0 ? 'Pick a box' : state.rolled ? 'Throw again' : 'Throw';
 
     const showVals = state.rolled && !rolling;
     $('readout').innerHTML = readoutOrder().map(i => [state.dice[i], i]).map(([d, i]) =>
@@ -1148,9 +1155,9 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     let m;
     if (state.over) m = 'Game over. Start a new game when you are ready.';
     else if (p.bot) m = botMsg || 'The computer is up.';
-    else if (online() && !net.connected) m = net.me === 0 && !state.rolled && state.round === 1 ? 'Waiting for your opponent to open the invite link‚Ä¶' : 'Connection lost. Waiting for your opponent to reconnect‚Ä¶';
-    else if (remoteTurn()) m = rolling ? 'Your opponent is throwing‚Ä¶' : !state.rolled ? (noteText() ? `<strong>${noteText()}</strong>` : 'Waiting for your opponent to throw‚Ä¶') : 'Your opponent is deciding‚Ä¶';
-    else if (rolling) m = 'Rolling‚Ä¶';
+    else if (online() && !net.connected) m = net.me === 0 && !state.rolled && state.round === 1 ? 'Waiting for your opponent to open the invite link\u2026' : 'Connection lost. Waiting for your opponent to reconnect\u2026';
+    else if (remoteTurn()) m = rolling ? 'Your opponent is throwing\u2026' : !state.rolled ? (noteText() ? `<strong>${noteText()}</strong>` : 'Waiting for your opponent to throw\u2026') : 'Your opponent is deciding\u2026';
+    else if (rolling) m = 'Rolling\u2026';
     else if (!state.rolled && noteText()) m = `<strong>${noteText()}</strong> Your turn: press Throw.`;
     else if (!state.rolled) m = state.round === 1 && state.cur === 0 && !multi ? 'Press Throw to start. You get three throws a turn.' : 'Throw to start the turn.';
     else if (L && L.joker) m = `<strong>Joker!</strong> ${L.bonus ? '+100 bonus banked. ' : ''}Score it in a highlighted box.`;
@@ -1168,7 +1175,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
       }
       if (isCur && L) {
         if (id in L.scores) { const s = L.scores[id]; return `<td class="${cls}"><button class="pot ${s === 0 ? 'z' : ''}" ${locked() ? 'disabled' : ''} data-cat="${id}" aria-label="Score ${s} in ${CATS.find(c => c.id === id).label}">${s}</button></td>`; }
-        return `<td class="${cls}"><span class="lock" title="Joker rules">¬∑</span></td>`;
+        return `<td class="${cls}"><span class="lock" title="Joker rules">\u00b7</span></td>`;
       }
       return `<td class="${cls}"></td>`;
     };
@@ -1182,10 +1189,10 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
       <tr class="sec"><td colspan="${cols}">Upper<span>bonus at 63</span></td></tr>
       ${CATS.filter(c => c.n).map(row).join('')}
       <tr class="sub"><td>Subtotal</td>${T.map(t => `<td class="v">${t.upper}<span class="bar ${t.upper >= 63 ? 'done' : ''}"><i style="width:${Math.min(100, t.upper / 63 * 100)}%"></i></span></td>`).join('')}</tr>
-      <tr class="sub"><td>Bonus +35</td>${T.map(t => `<td class="v ${t.bonus ? 'got' : ''}">${t.bonus ? '+35' : '‚Äî'}</td>`).join('')}</tr>
+      <tr class="sub"><td>Bonus +35</td>${T.map(t => `<td class="v ${t.bonus ? 'got' : ''}">${t.bonus ? '+35' : '\u2014'}</td>`).join('')}</tr>
       <tr class="sec"><td colspan="${cols}">Lower</td></tr>
       ${CATS.filter(c => !c.n).map(row).join('')}
-      <tr class="sub"><td>Fives +100</td>${state.players.map(pl => `<td class="v ${pl.fiveBonus ? 'got' : ''}">${pl.fiveBonus ? '+' + pl.fiveBonus : '‚Äî'}</td>`).join('')}</tr>
+      <tr class="sub"><td>Fives +100</td>${state.players.map(pl => `<td class="v ${pl.fiveBonus ? 'got' : ''}">${pl.fiveBonus ? '+' + pl.fiveBonus : '\u2014'}</td>`).join('')}</tr>
       <tr class="grand"><td>Total</td>${T.map(t => `<td class="v">${t.total}</td>`).join('')}</tr>
     </tbody>`;
   }
@@ -1337,7 +1344,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     $('inviteTitle').textContent = 'Play a friend online';
     $('inviteText').textContent = 'Send this link to your opponent. The game starts as soon as they open it on their phone.';
     $('inviteBox').hidden = true; $('inviteShare').hidden = true; $('inviteCancel').textContent = 'Cancel';
-    inviteStatus('Setting up a game room‚Ä¶');
+    inviteStatus('Setting up a game room\u2026');
     $('invite').hidden = false;
     try { await loadPeer(); } catch (e) { inviteStatus('Could not load the online service. Check your connection and try again.', true); return; }
     const open = () => {
@@ -1348,7 +1355,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
         const url = location.origin + location.pathname + '?join=' + net.code;
         $('inviteLink').value = url;
         $('inviteBox').hidden = false; $('inviteShare').hidden = false;
-        inviteStatus('Waiting for your opponent to join‚Ä¶');
+        inviteStatus('Waiting for your opponent to join\u2026');
       });
       peer.on('connection', c => { if (net.conn && net.conn !== c) { try { net.conn.close(); } catch (e) {} } wire(c); });
       peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) {} });
@@ -1365,9 +1372,9 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     if (renderer) placeAtRest();
     render();
     $('inviteTitle').textContent = 'Joining game';
-    $('inviteText').textContent = 'Connecting to your opponent‚Äôs phone‚Ä¶';
+    $('inviteText').textContent = 'Connecting to your opponent\u2019s phone\u2026';
     $('inviteBox').hidden = true; $('inviteShare').hidden = true; $('inviteCancel').textContent = 'Play on my own';
-    inviteStatus('Connecting‚Ä¶');
+    inviteStatus('Connecting\u2026');
     $('invite').hidden = false;
     try { await loadPeer(); } catch (e) { inviteStatus('Could not load the online service. Check your connection and reload.', true); return; }
     const peer = new Peer();
@@ -1377,7 +1384,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     peer.on('error', e => {
       if (e.type === 'peer-unavailable') {
         if (net.retry) return; // keep retrying quietly after a drop
-        inviteStatus('That game isn‚Äôt open anymore. Ask your opponent to send a new link.', true);
+        inviteStatus('That game isn\u2019t open anymore. Ask your opponent to send a new link.', true);
       } else inviteStatus('Connection problem (' + e.type + '). Try reloading.', true);
     });
   }
