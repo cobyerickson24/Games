@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e141c">
+<title>Games</title>
+<link rel="icon" type="image/png" href="pips/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800&family=Manrope:wght@400;600&display=swap">
+<style>
+:root {
+  --ink: #0e141c; --panel: #172331; --line: #273749; --brass: #dcab55; --text: #ebe5d8; --muted: #8794a5;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh; background: var(--ink); color: var(--text);
+  font-family: "Manrope", system-ui, sans-serif;
+  padding: max(28px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px));
+}
+main { max-width: 720px; margin: 0 auto; }
+h1 { font-family: "Unbounded", system-ui, sans-serif; font-weight: 800; font-size: 28px; margin: 0 0 6px; }
+p { color: var(--muted); margin: 0 0 24px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+a.game {
+  display: flex; gap: 14px; align-items: center; padding: 14px; border-radius: 16px; text-decoration: none; color: inherit;
+  background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); transition: box-shadow .2s, transform .2s;
+}
+a.game:hover, a.game:focus-visible { box-shadow: inset 0 0 0 1.5px var(--brass); transform: translateY(-2px); outline: none; }
+a.game img { width: 52px; height: 52px; border-radius: 12px; flex: none; }
+a.game b { display: block; font-family: "Unbounded", system-ui, sans-serif; font-size: 16px; margin-bottom: 2px; }
+a.game span { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Games</h1>
+  <p>Pick a game to play. They run in the browser and work on phones too.</p>
+  <div class="grid">
+    <a class="game" href="pips/">
+      <img src="pips/icon-192.png" alt="">
+      <div><b>Pips</b><span>Five dice, thirteen boxes. 3D dice, play the computer.</span></div>
+    </a>
+  </div>
+</main>
+</body>
+</html>
