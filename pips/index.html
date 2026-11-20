@@ -1,0 +1,1267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
+<meta name="theme-color" content="#0e141c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pips">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+/* page shell (on claude.ai the host adds this; on GitHub Pages the page carries it itself) */
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; }
+[hidden] { display: none !important; }
+button, .stage { touch-action: manipulation; }
+</style>
+<title>Pips Parlor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: a 3D lacquered dice tray (sticky) beside a brass-ruled scorecard; stacks on phones with the tray pinned on top. Single committed dark look. */
+:root {
+  --ink: #0e141c;
+  --lacquer: #172331;
+  --lacquer-hi: #22344a;
+  --brass: #dcab55;
+  --brass-deep: #a8792c;
+  --bone: #f2e9d8;
+  --pip: #1b1e26;
+  --pip-red: #b3362b;
+  --text: #ebe5d8;
+  --muted: #8794a5;
+  --line: #273749;
+  --zero: #d27a66;
+  --display: "Unbounded", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Manrope", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body {
+  background: radial-gradient(1200px 600px at 20% -10%, rgba(220,171,85,.08), transparent 60%), var(--ink);
+  color: var(--text); font-family: var(--body); font-size: 15px; -webkit-font-smoothing: antialiased;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--ink); }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+
+.app {
+  max-width: 1180px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 18px 48px;
+}
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand h1 { font-family: var(--display); font-weight: 800; font-size: 26px; letter-spacing: -.01em; margin: 0; line-height: 1; }
+.brand h1 span { color: var(--brass); }
+.brand p { margin: 3px 0 0; color: var(--muted); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+.mark { width: 34px; height: 34px; border-radius: 9px; background: var(--brass); display: grid; grid-template: repeat(3,1fr)/repeat(3,1fr); padding: 6px; transform: rotate(-8deg); box-shadow: 0 4px 14px rgba(220,171,85,.25); }
+.mark i { width: 5px; height: 5px; border-radius: 50%; background: var(--ink); place-self: center; }
+.tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.stat { font-family: var(--mono); font-size: 12px; color: var(--muted); padding: 0 6px; }
+.stat b { color: var(--text); font-weight: 700; }
+.ghost { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text); transition: border-color .2s, background .2s; }
+.ghost:hover { border-color: var(--brass-deep); background: rgba(220,171,85,.06); }
+.ghost[aria-pressed="false"] { color: var(--muted); }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 28px; margin-top: 22px; align-items: start; }
+.table { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); z-index: 5; }
+@media (max-width: 880px) {
+  html, body { height: 100%; }
+  .app { height: 100%; display: flex; flex-direction: column; padding-block: 8px 10px; }
+  .layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 10px; margin-top: 10px; align-items: stretch; }
+  .table { position: static; display: flex; flex-direction: column; min-height: 0; }
+  .card { min-height: 0; overflow: auto; border-radius: 14px; padding: 0 2px 6px; -webkit-overflow-scrolling: touch; }
+  .top { gap: 8px; flex-wrap: nowrap; }
+  .brand { gap: 8px; }
+  .brand h1 { font-size: 19px; }
+  .brand p { display: none; }
+  .mark { width: 24px; height: 24px; padding: 4px; border-radius: 6px; }
+  .mark i { width: 3.5px; height: 3.5px; }
+  .tools { gap: 5px; flex-wrap: nowrap; }
+  .stat { display: none; }
+  .ghost { padding: 6px 9px; font-size: 11.5px; }
+  .turn { margin-bottom: 6px; gap: 2px 8px; }
+  .turn h2 { font-size: 12.5px; }
+  .round { font-size: 10.5px; }
+  .board { flex-direction: column; gap: 5px; margin-bottom: 8px; }
+  .chip { padding: 5px 9px; border-radius: 10px; }
+  .chip span { font-size: 11px; }
+  .chip small { font-size: 10px; min-height: 0; }
+  .chip b { font-size: 16px; }
+  .banner { font-size: 13px; white-space: normal; text-align: center; width: 90%; }
+}
+.turn { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.turn h2 { font-family: var(--display); font-weight: 700; font-size: 15px; margin: 0; }
+.turn h2 em { font-style: normal; color: var(--brass); }
+.round { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.round b { color: var(--text); }
+.mode { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; color: var(--brass); text-decoration: underline; text-decoration-color: rgba(220,171,85,.4); text-underline-offset: 3px; }
+
+/* Scoreboard */
+.board { display: flex; gap: 8px; margin-bottom: 10px; }
+.chip { flex: 1; min-width: 0; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); background: rgba(255,255,255,.02); transition: box-shadow .3s, background .3s; }
+.chip.cur { box-shadow: inset 0 0 0 1.5px var(--brass); background: rgba(220,171,85,.07); }
+.chip div { min-width: 0; }
+.chip span { display: block; font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip.cur span { color: var(--text); }
+.chip small { display: block; font-family: var(--mono); font-size: 11px; color: var(--brass); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.3em; }
+.chip b { font-family: var(--display); font-size: 20px; font-variant-numeric: tabular-nums; }
+.chip.lead b { color: var(--brass); }
+
+/* Seats (phone layout): opponent above the play area, you below */
+.seat { display: none; }
+.seat .who { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 6px 8px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); background: rgba(255,255,255,.02); flex: 1; transition: box-shadow .3s, background .3s; }
+.seat .who.cur { box-shadow: inset 0 0 0 1.5px var(--brass); background: rgba(220,171,85,.08); }
+.seat .av { width: 30px; height: 30px; flex: none; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 10px; background: var(--lacquer-hi); color: var(--text); box-shadow: inset 0 0 0 1.5px var(--line); }
+.seat .who.cur .av { background: var(--brass); color: #1d1505; box-shadow: none; }
+.seat .nm { flex: 1; min-width: 0; }
+.seat .nm span { display: block; font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seat .nm small { display: block; font-family: var(--mono); font-size: 10px; color: var(--brass); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seat .who b { font-family: var(--display); font-size: 17px; font-variant-numeric: tabular-nums; }
+
+/* 3D stage */
+.stage {
+  position: relative; aspect-ratio: 4 / 3; max-width: 100%; border-radius: 24px; overflow: hidden;
+  background: radial-gradient(90% 80% at 50% 30%, var(--lacquer-hi), var(--ink));
+  box-shadow: inset 0 0 0 1px rgba(220,171,85,.25), 0 30px 60px -30px rgba(0,0,0,.8);
+  user-select: none; -webkit-user-select: none;
+}
+.stage canvas { display: block; width: 100%; height: 100%; }
+@media (max-width: 880px) { .stage { aspect-ratio: auto; flex: 1; min-height: 180px; border-radius: 16px; } }
+.nogl { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; color: var(--muted); }
+.banner {
+  position: absolute; left: 50%; top: 16px; transform: translateX(-50%);
+  font-family: var(--display); font-weight: 800; font-size: clamp(15px, 3.2vw, 22px); color: var(--brass);
+  white-space: nowrap; pointer-events: none; opacity: 0; text-shadow: 0 2px 18px rgba(0,0,0,.6), 0 0 24px rgba(220,171,85,.35);
+}
+.banner.show { animation: banner 2.2s ease both; }
+@keyframes banner { 0% { opacity: 0; transform: translate(-50%, 8px) scale(.9); } 15% { opacity: 1; transform: translate(-50%, 0) scale(1.04); } 25% { transform: translate(-50%,0) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -6px); } }
+
+/* Controls under the stage */
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; margin-top: 14px; flex-wrap: wrap; }
+.readout { display: flex; gap: 8px; }
+.rd {
+  width: 38px; height: 38px; border-radius: 9px; border: 0; padding: 5px; cursor: pointer;
+  background: var(--bone); display: grid; grid-template: repeat(3,1fr)/repeat(3,1fr);
+  box-shadow: inset 0 -3px 0 rgba(80,55,20,.25); transition: transform .2s, box-shadow .2s, opacity .2s;
+}
+.rd i { width: 6px; height: 6px; border-radius: 50%; background: var(--pip); place-self: center; }
+.rd.one i { width: 9px; height: 9px; background: var(--pip-red); }
+.rd.held { transform: translateY(-4px); box-shadow: inset 0 -3px 0 rgba(80,55,20,.25), 0 0 0 2px var(--ink), 0 0 0 4px var(--brass); }
+.rd.hint { box-shadow: inset 0 -3px 0 rgba(80,55,20,.25), 0 0 14px 2px rgba(220,171,85,.7); }
+.rd.blank { opacity: .3; }
+.rd:disabled { cursor: default; }
+.act { display: flex; align-items: center; gap: 14px; }
+.lights { display: flex; gap: 7px; align-items: center; }
+.lights i { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--brass-deep); transition: background .25s, box-shadow .25s; }
+.lights i.on { background: var(--brass); border-color: var(--brass); box-shadow: 0 0 10px rgba(220,171,85,.55); }
+.roll {
+  font-family: var(--display); font-weight: 700; font-size: 15px; letter-spacing: .04em;
+  color: #1d1505; border: 0; border-radius: 999px; padding: 13px 28px; cursor: pointer; min-width: 150px;
+  background: linear-gradient(180deg, #f0c674, var(--brass) 45%, var(--brass-deep));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 8px 22px -8px rgba(220,171,85,.6), 0 2px 0 #6e4f1c;
+  transition: transform .12s, filter .2s, opacity .2s;
+}
+.roll:hover:not(:disabled) { filter: brightness(1.06); }
+.roll:active:not(:disabled) { transform: translateY(2px); }
+.roll:disabled { cursor: default; opacity: .38; filter: saturate(.5); }
+.msg { color: var(--muted); font-size: 13.5px; margin: 12px 0 0; min-height: 1.5em; line-height: 1.5; }
+.msg strong { color: var(--brass); font-weight: 700; }
+.keys { font-size: 11px; color: #5c6a7b; margin-top: 4px; font-family: var(--mono); }
+.keys kbd { font-family: inherit; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; color: var(--muted); }
+@media (max-width: 880px) {
+  .keys { display: none; }
+  .controls { margin-top: 8px; gap: 8px; flex-direction: column; align-items: stretch; }
+  .readout { gap: 4px; justify-content: space-between; }
+  .rd { width: auto; flex: 1; aspect-ratio: 1; height: auto; max-width: 40px; padding: 4px; border-radius: 7px; }
+  .rd i { width: 4.5px; height: 4.5px; } .rd.one i { width: 7px; height: 7px; }
+  .act { gap: 10px; }
+  .lights { gap: 4px; } .lights i { width: 8px; height: 8px; }
+  .roll { flex: 1; min-width: 0; padding: 11px 8px; font-size: 12px; white-space: nowrap; letter-spacing: .01em; }
+  .msg { margin: 6px 0 0; font-size: 11.5px; line-height: 1.4; min-height: 2.8em; }
+}
+
+/* Scorecard */
+.card { border-radius: 20px; background: linear-gradient(180deg, #131c27, #111923); box-shadow: inset 0 0 0 1px var(--line); padding: 6px 4px 10px; overflow-x: auto; }
+.sheet { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.sheet th, .sheet td { padding: 0 10px; height: 40px; text-align: left; }
+.sheet thead th { font-family: var(--mono); font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; height: 38px; }
+.sheet thead th.p { text-align: center; width: 64px; }
+.sheet thead th.p.cur { color: var(--brass); }
+.sheet .sec td { height: 30px; padding-top: 10px; font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--brass-deep); font-weight: 700; border-bottom: 1px solid rgba(220,171,85,.22); }
+.sheet .sec td span { color: var(--muted); letter-spacing: .08em; text-transform: none; font-weight: 500; margin-left: 8px; font-size: 11px; }
+.sheet tbody tr.cat td { border-bottom: 1px solid rgba(39,55,73,.55); }
+.sheet tr.cat.live:hover td, .sheet tr.cat.live:focus-within td { background: rgba(220,171,85,.05); }
+.lab { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.lab b { font-weight: 600; font-size: 14px; white-space: nowrap; }
+.lab small { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+.lab .s { display: none; }
+@media (max-width: 880px) {
+  .lab small, .lab .l, .lab .mini, .lab .glyph { display: none; }
+  .lab .s { display: inline; }
+  .lab b { font-size: 11px; font-weight: 600; }
+  .lab { gap: 0; }
+  .sheet th, .sheet td { padding: 0 3px; height: 31px; }
+  .sheet th:first-child, .sheet td:first-child { padding-left: 7px; }
+  .sheet thead th { font-size: 9.5px; height: 28px; letter-spacing: .06em; }
+  .sheet thead th.p { width: 32px; }
+  .sheet .sec td { height: 24px; padding-top: 6px; font-size: 9px; }
+  .sheet .sec td span { display: none; }
+  td.v { font-size: 12.5px; }
+  .pot { height: 24px; font-size: 11.5px; border-radius: 6px; max-width: 32px; }
+  .sheet tr.sub td:first-child { font-size: 10.5px; }
+  .sheet tr.sub td { height: 28px; font-size: 11px; }
+  .sheet tr.sub td.v { font-size: 11.5px; }
+  .bar { width: 26px; }
+  .sheet tr.grand td { height: 38px; font-size: 12px; }
+  .sheet tr.grand td.v { font-size: 14px; }
+}
+.mini { width: 18px; height: 18px; flex: none; border-radius: 4px; background: var(--bone); display: grid; grid-template: repeat(3,1fr)/repeat(3,1fr); padding: 2.5px; }
+.mini i { width: 3px; height: 3px; border-radius: 50%; background: var(--pip); place-self: center; }
+.glyph { width: 18px; flex: none; text-align: center; font-family: var(--mono); font-size: 11px; color: var(--brass-deep); }
+td.v { text-align: center !important; font-family: var(--mono); font-size: 15px; font-weight: 700; }
+td.v.cur { background: rgba(220,171,85,.035); }
+td.v .zero { color: var(--zero); opacity: .75; }
+td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1); color: var(--brass); }
+@keyframes pop { 0% { transform: scale(.3); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.pot { width: 100%; max-width: 54px; height: 30px; border-radius: 8px; cursor: pointer; border: 1px dashed rgba(220,171,85,.55); background: rgba(220,171,85,.06); font-family: var(--mono); font-weight: 700; font-size: 14px; color: var(--brass); transition: background .15s, transform .15s; }
+.pot:hover, .pot:focus-visible { background: var(--brass); color: #1d1505; border-style: solid; transform: scale(1.06); }
+.pot:disabled { cursor: default; opacity: .55; transform: none; }
+.pot.z { color: var(--zero); border-color: rgba(210,122,102,.4); background: transparent; }
+.pot.z:hover, .pot.z:focus-visible { background: var(--zero); color: #1d1505; }
+.lock { color: #4a5868; font-size: 12px; }
+.sheet tr.sub td { height: 34px; color: var(--muted); font-size: 12.5px; }
+.sheet tr.sub td.v { font-size: 13px; color: var(--text); }
+.bar { display: block; height: 3px; border-radius: 2px; background: var(--line); margin: 4px auto 0; width: 40px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--brass); transition: width .5s; }
+.bar.done i { background: #8cc49a; }
+.got { color: #8cc49a; }
+.sheet tr.grand td { height: 50px; border-top: 1px solid rgba(220,171,85,.35); font-family: var(--display); font-weight: 700; font-size: 14px; }
+.sheet tr.grand td.v { font-family: var(--display); font-size: 18px; color: var(--brass); }
+
+/* Overlays */
+.veil { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); background: rgba(6,10,15,.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.panel { width: min(440px, 100%); max-height: 100%; overflow: auto; border-radius: 22px; padding: 26px; background: var(--lacquer); box-shadow: inset 0 0 0 1px rgba(220,171,85,.3), 0 40px 80px -20px rgba(0,0,0,.8); animation: rise .35s cubic-bezier(.2,1.2,.4,1); }
+@keyframes rise { from { transform: translateY(14px) scale(.97); opacity: 0; } }
+.panel h3 { font-family: var(--display); font-weight: 800; font-size: 22px; margin: 0 0 6px; text-wrap: balance; }
+.panel p { color: var(--muted); margin: 0 0 18px; line-height: 1.55; }
+.seg { display: grid; grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); gap: 8px; margin-bottom: 22px; }
+.seg button { border: 1px solid var(--line); background: transparent; border-radius: 12px; padding: 12px 0 10px; cursor: pointer; font-family: var(--display); font-weight: 700; font-size: 18px; }
+.seg button small { display: block; font-family: var(--body); font-weight: 500; font-size: 11px; color: var(--muted); margin-top: 2px; }
+.seg button[aria-checked="true"] { border-color: var(--brass); background: rgba(220,171,85,.1); color: var(--brass); }
+.row { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.panel .roll { min-width: 0; padding: 12px 24px; font-size: 14px; }
+.results { list-style: none; padding: 0; margin: 0 0 20px; display: grid; gap: 8px; }
+.results li { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.03); box-shadow: inset 0 0 0 1px var(--line); }
+.results li.win { box-shadow: inset 0 0 0 1px var(--brass); background: rgba(220,171,85,.08); }
+.results b { font-family: var(--display); font-size: 20px; }
+.results li.win b { color: var(--brass); }
+.big { font-family: var(--display); font-weight: 800; font-size: 56px; color: var(--brass); line-height: 1; margin: 6px 0 4px; }
+.rules { margin: 0 0 20px; padding: 0; list-style: none; display: grid; gap: 10px; font-size: 14px; line-height: 1.5; }
+.rules li { padding-left: 16px; position: relative; }
+.rules li::before { content: ""; position: absolute; left: 0; top: .6em; width: 6px; height: 6px; border-radius: 50%; background: var(--brass); }
+.rules span { color: var(--muted); }
+#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; }
+@media (prefers-reduced-motion: reduce) { .panel { animation: none; } }
+@media (max-width: 880px) {
+  .table .board, .table .readout, .turn h2 { display: none; }
+  .turn { order: 0; justify-content: flex-start; margin-bottom: 4px; height: 28px; flex: none; align-items: center; overflow: hidden; }
+  .round { line-height: 1.3; }
+  .seat { display: flex; gap: 5px; }
+  #seatTop { order: 1; margin-bottom: 6px; }
+  #seatTop .who { padding: 5px 7px; }
+  .msg { order: 2; margin: 0 0 6px; padding: 0 9px; border-radius: 10px; background: rgba(220,171,85,.1); box-shadow: inset 0 0 0 1px rgba(220,171,85,.25); color: var(--text); font-size: 11px; line-height: 1.35; height: calc(3 * 1.35em + 12px); min-height: 0; flex: none; display: flex; align-items: center; overflow: hidden; }
+  .stage { order: 3; }
+  .controls { order: 4; margin-top: 8px; }
+  #seatBottom { order: 5; margin-top: 8px; }
+  .act { justify-content: space-between; }
+  .roll { flex: 0 1 auto; padding: 8px 18px; font-size: 12px; box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 4px 12px -6px rgba(220,171,85,.6), 0 1px 0 #6e4f1c; }
+  .lights i { width: 9px; height: 9px; }
+  .card { display: flex; }
+  .sheet { height: 100%; }
+  .sheet th, .sheet td { height: auto; }
+  .sheet tbody tr.cat td { height: 30px; }
+  .lab b { font-size: 12px; }
+  td.v { font-size: 13px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"><i></i><span></span><i></i><span></span><i></i><span></span><i></i><span></span><i></i></div>
+      <div>
+        <h1>Pips<span>.</span></h1>
+        <p>Five dice · thirteen boxes</p>
+      </div>
+    </div>
+    <div class="tools">
+      <span class="stat">Best <b id="best">—</b></span>
+      <button class="ghost" id="soundBtn" aria-pressed="true">Sound on</button>
+      <button class="ghost" id="rulesBtn">Rules</button>
+      <button class="ghost" id="newBtn">New game</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="table" aria-label="Dice tray">
+      <div class="turn">
+        <h2 id="who">Your turn</h2>
+        <span class="round"><button class="mode" id="modeBtn"></button> · Round <b id="round">1</b> of 13</span>
+      </div>
+      <div class="board" id="board" hidden></div>
+      <div class="seat" id="seatTop"></div>
+      <div class="stage" id="stage">
+        <div class="banner" id="banner"></div>
+      </div>
+      <div class="controls">
+        <div class="readout" id="readout" aria-label="Dice"></div>
+        <div class="act">
+          <div class="lights" id="lights" aria-label="Rolls left"><i></i><i></i><i></i></div>
+          <button class="roll" id="rollBtn">Throw</button>
+        </div>
+      </div>
+      <p class="msg" id="msg" aria-live="polite"></p>
+      <div class="seat" id="seatBottom"></div>
+      <p class="keys"><kbd>Space</kbd> throw · <kbd>1</kbd>–<kbd>5</kbd> hold a die · click a die in the tray to hold it</p>
+    </section>
+
+    <section class="card" aria-label="Scorecard">
+      <table class="sheet" id="sheet"></table>
+    </section>
+  </main>
+</div>
+
+<div class="veil" id="setup" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+    <h3 id="setupTitle">New game</h3>
+    <p>Play the computer, practice solo, or pass one device around. Everyone fills all thirteen boxes; highest total wins.</p>
+    <div class="seg" id="seg" role="radiogroup" aria-label="Number of players">
+      <button role="radio" aria-checked="true" data-n="bot">CPU<small>vs computer</small></button>
+      <button role="radio" aria-checked="false" data-n="1">1<small>solo</small></button>
+      <button role="radio" aria-checked="false" data-n="2">2<small>players</small></button>
+      <button role="radio" aria-checked="false" data-n="3">3<small>players</small></button>
+      <button role="radio" aria-checked="false" data-n="4">4<small>players</small></button>
+    </div>
+    <div class="row">
+      <button class="ghost" id="setupCancel">Keep playing</button>
+      <button class="roll" id="setupGo">Start game</button>
+    </div>
+  </div>
+</div>
+
+<div class="veil" id="over" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="overTitle">
+    <h3 id="overTitle">Game over</h3>
+    <div id="overBody"></div>
+    <div class="row">
+      <button class="ghost" id="overChange">Change players</button>
+      <button class="roll" id="overAgain">Play again</button>
+    </div>
+  </div>
+</div>
+
+<div class="veil" id="rules" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+    <h3 id="rulesTitle">How to play</h3>
+    <ul class="rules">
+      <li><b>Throw up to three times a turn.</b> <span>Press Throw and the dice tumble into the tray. Whatever lands face up is your roll.</span></li>
+      <li><b>Hold dice between throws.</b> <span>Click a die in the tray (or below it) and it moves to the rail. Click it again to put it back.</span></li>
+      <li><b>Then score one box.</b> <span>Every box gets used once, even for zero. Thirteen turns, thirteen boxes.</span></li>
+      <li><b>Upper section:</b> <span>add up the dice showing that number. Reach 63 for a +35 bonus.</span></li>
+      <li><b>Lower section:</b> <span>three or four of a kind score the sum of all dice. Full house 25, small straight 30, large straight 40, five of a kind 50. Chance is any sum.</span></li>
+      <li><b>Extra five of a kind:</b> <span>+100 if you already scored 50 there. It then acts as a joker: use its upper box if open, otherwise any lower box at full value.</span></li>
+    </ul>
+    <div class="row"><button class="roll" id="rulesClose">Got it</button></div>
+  </div>
+</div>
+
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+<script>
+(() => {
+  /* ================= rules & scoring ================= */
+  const UPPER = ['ones','twos','threes','fours','fives','sixes'];
+  const CATS = [
+    { id:'ones',   label:'Ones',   note:'sum of 1s', n:1 },
+    { id:'twos',   label:'Twos',   note:'sum of 2s', n:2 },
+    { id:'threes', label:'Threes', note:'sum of 3s', n:3 },
+    { id:'fours',  label:'Fours',  note:'sum of 4s', n:4 },
+    { id:'fives',  label:'Fives',  note:'sum of 5s', n:5 },
+    { id:'sixes',  label:'Sixes',  note:'sum of 6s', n:6 },
+    { id:'three',  label:'Three of a kind', s:'3 of a kind', note:'sum', g:'3×' },
+    { id:'four',   label:'Four of a kind', s:'4 of a kind',  note:'sum', g:'4×' },
+    { id:'full',   label:'Full house', s:'Full house',      note:'25',  g:'FH' },
+    { id:'small',  label:'Small straight', s:'Sm. straight',  note:'30',  g:'4→' },
+    { id:'large',  label:'Large straight', s:'Lg. straight',  note:'40',  g:'5→' },
+    { id:'five',   label:'Five of a kind', s:'5 of a kind',  note:'50',  g:'5×' },
+    { id:'chance', label:'Chance',          note:'sum', g:'?' },
+  ];
+  const LOWER = CATS.filter(c => !c.n).map(c => c.id);
+  const PIPS = { 1:[5], 2:[3,7], 3:[3,5,7], 4:[1,3,7,9], 5:[1,3,5,7,9], 6:[1,3,4,6,7,9] };
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = id => document.getElementById(id);
+  const rnd6 = () => 1 + Math.floor(Math.random() * 6);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  };
+
+  let state, rolling = false, hintIdx = [], pickN = store.get('pips-mode', 'bot'), botActing = false, botMsg = '', gameId = 0, settleWaiters = [];
+  const isBot = () => !!(state && !state.over && state.players[state.cur].bot);
+  let muted = store.get('pips-muted', false);
+  let best = store.get('pips-best', null);
+
+  function newState(mode) {
+    const mk = (name, short, bot) => ({ name, short, bot, scores: Object.fromEntries(CATS.map(c => [c.id, null])), fiveBonus: 0 });
+    const players = mode === 'bot' ? [mk('You', 'You', false), mk('Computer', 'CPU', true)]
+      : +mode === 1 ? [mk('You', 'Score', false)]
+      : Array.from({ length: +mode }, (_, i) => mk('Player ' + (i + 1), 'P' + (i + 1), false));
+    return {
+      mode: String(mode), players,
+      cur: 0, round: 1, rollsLeft: 3, rolled: false, over: false, last: null,
+      dice: Array.from({ length: 5 }, () => ({ v: rnd6(), held: false })),
+    };
+  }
+  const vals = () => state.dice.map(d => d.v);
+  const counts = v => { const c = [0,0,0,0,0,0,0]; v.forEach(x => c[x]++); return c; };
+  const sum = v => v.reduce((a, b) => a + b, 0);
+  function runOf(v, len) {
+    const s = new Set(v);
+    for (let a = 1; a + len - 1 <= 6; a++) {
+      let ok = true; for (let k = a; k < a + len; k++) if (!s.has(k)) { ok = false; break; }
+      if (ok) return a;
+    }
+    return 0;
+  }
+  function scoreFor(id, v) {
+    const c = counts(v), mx = Math.max(...c), cat = CATS.find(x => x.id === id);
+    if (cat.n) return c[cat.n] * cat.n;
+    switch (id) {
+      case 'three': return mx >= 3 ? sum(v) : 0;
+      case 'four':  return mx >= 4 ? sum(v) : 0;
+      case 'full':  return c.filter(x => x).sort().join() === '2,3' ? 25 : 0;
+      case 'small': return runOf(v, 4) ? 30 : 0;
+      case 'large': return runOf(v, 5) ? 40 : 0;
+      case 'five':  return mx === 5 ? 50 : 0;
+      case 'chance': return sum(v);
+    }
+    return 0;
+  }
+  function legal(p, v) {
+    const isFive = Math.max(...counts(v)) === 5;
+    const open = CATS.filter(x => p.scores[x.id] === null).map(x => x.id);
+    const out = {};
+    if (isFive && p.scores.five !== null) {
+      const bonus = p.scores.five === 50, up = UPPER[v[0] - 1];
+      if (p.scores[up] === null) out[up] = scoreFor(up, v);
+      else {
+        const lo = open.filter(id => LOWER.includes(id));
+        if (lo.length) lo.forEach(id => out[id] = id === 'full' ? 25 : id === 'small' ? 30 : id === 'large' ? 40 : scoreFor(id, v));
+        else open.forEach(id => out[id] = scoreFor(id, v));
+      }
+      return { scores: out, joker: true, bonus };
+    }
+    open.forEach(id => out[id] = scoreFor(id, v));
+    return { scores: out, joker: false, bonus: false };
+  }
+  function totals(p) {
+    const upper = UPPER.reduce((a, id) => a + (p.scores[id] || 0), 0);
+    const bonus = upper >= 63 ? 35 : 0;
+    const lower = LOWER.reduce((a, id) => a + (p.scores[id] || 0), 0);
+    return { upper, bonus, lower, total: upper + bonus + lower + p.fiveBonus };
+  }
+  function contrib(id, v) {
+    const c = counts(v), all = [0,1,2,3,4], cat = CATS.find(x => x.id === id), five = Math.max(...c) === 5;
+    if (cat.n) return all.filter(i => v[i] === cat.n);
+    if (id === 'three' || id === 'four') return Math.max(...c) >= (id === 'three' ? 3 : 4) ? all : [];
+    if (id === 'full') return scoreFor('full', v) || five ? all : [];
+    if (id === 'small' || id === 'large') {
+      const len = id === 'small' ? 4 : 5, a = runOf(v, len);
+      if (!a) return five ? all : [];
+      const out = []; for (let k = a; k < a + len; k++) out.push(v.indexOf(k));
+      return out;
+    }
+    if (id === 'five') return five ? all : [];
+    return all;
+  }
+
+  /* ================= sound ================= */
+  let ac = null, noise = null;
+  function audio() {
+    if (muted) return null;
+    try {
+      if (!ac) {
+        ac = new (window.AudioContext || window.webkitAudioContext)();
+        noise = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.06), ac.sampleRate);
+        const d = noise.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+      }
+      if (ac.state === 'suspended') ac.resume();
+    } catch (e) { return null; }
+    return ac;
+  }
+  function tick(f, g, q = 4) {
+    if (!audio()) return;
+    const s = ac.createBufferSource(); s.buffer = noise;
+    const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
+    const gn = ac.createGain(); gn.gain.value = g;
+    s.connect(bp).connect(gn).connect(ac.destination); s.start();
+  }
+  function chime(big) {
+    if (!audio()) return;
+    const now = ac.currentTime;
+    (big ? [660, 880, 1100, 1320] : [880, 1320]).forEach((f, i) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      const t = now + i * (big ? 0.09 : 0.05);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.12, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + (big ? 1.2 : 0.5));
+      o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 1.3);
+    });
+  }
+
+  /* ================= 3D world ================= */
+  const stage = $('stage');
+  const has3D = !!(window.THREE && window.CANNON) && (() => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl') || c.getContext('experimental-webgl')); } catch (e) { return false; } })();
+  const DS = 0.78, HS = DS / 2, GY = 1.9; // die size (world units), half size, release height
+  let trayGroup = null, wallBodies = [], trayPending = null, trayMats = null;
+  const FACE_VALS = [3, 4, 2, 5, 1, 6]; // BoxGeometry order: +x, -x, +y, -y, +z, -z
+  let renderer, scene, camera, world, meshes = [], bodies = [], rings = [], raycaster, UP;
+  let FACE_N = [];
+  const lastHit = [0,0,0,0,0];
+  const anims = [null,null,null,null,null];
+  let flying = false, flyT0 = 0, calm = 0, nudges = 0;
+  let downInfo = null;
+
+  function faceTexture(n) {
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(96, 84, 10, 128, 128, 200);
+    grd.addColorStop(0, '#fffbf3'); grd.addColorStop(.65, '#f1e7d3'); grd.addColorStop(1, '#cbb995');
+    g.fillStyle = grd; g.fillRect(0, 0, 256, 256);
+    PIPS[n].forEach(k => {
+      const x = 64 + ((k - 1) % 3) * 64, y = 64 + Math.floor((k - 1) / 3) * 64;
+      const r = n === 1 ? 36 : 22;
+      g.beginPath(); g.arc(x, y + 2, r, 0, 7); g.fillStyle = 'rgba(255,255,255,.7)'; g.fill();
+      const pg = g.createRadialGradient(x - r * .3, y - r * .35, 1, x, y, r);
+      if (n === 1) { pg.addColorStop(0, '#d9584a'); pg.addColorStop(1, '#8e2219'); }
+      else { pg.addColorStop(0, '#454a58'); pg.addColorStop(1, '#14161c'); }
+      g.beginPath(); g.arc(x, y, r, 0, 7); g.fillStyle = pg; g.fill();
+    });
+    const t = new THREE.CanvasTexture(c);
+    t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+    return t;
+  }
+  function roundedBox(s, r, seg) {
+    const geo = new THREE.BoxGeometry(s, s, s, seg, seg, seg);
+    const p = geo.attributes.position, nm = geo.attributes.normal, h = s / 2 - r;
+    const v = new THREE.Vector3(), c = new THREE.Vector3(), d = new THREE.Vector3();
+    const cl = x => Math.max(-h, Math.min(h, x));
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i);
+      c.set(cl(v.x), cl(v.y), cl(v.z));
+      d.subVectors(v, c).normalize();
+      nm.setXYZ(i, d.x, d.y, d.z);
+      v.copy(c).addScaledVector(d, r);
+      p.setXYZ(i, v.x, v.y, v.z);
+    }
+    p.needsUpdate = true; nm.needsUpdate = true;
+    return geo;
+  }
+  function feltTexture() {
+    const c = document.createElement('canvas'); c.width = c.height = 512;
+    const g = c.getContext('2d');
+    g.fillStyle = '#1a2a3c'; g.fillRect(0, 0, 512, 512);
+    const img = g.getImageData(0, 0, 512, 512);
+    for (let i = 0; i < img.data.length; i += 4) { const n = (Math.random() - .5) * 14; img.data[i] += n; img.data[i+1] += n; img.data[i+2] += n; }
+    g.putImageData(img, 0, 0);
+    const vg = g.createRadialGradient(256, 256, 80, 256, 256, 380);
+    vg.addColorStop(0, 'rgba(60,90,120,.18)'); vg.addColorStop(1, 'rgba(0,0,0,.45)');
+    g.fillStyle = vg; g.fillRect(0, 0, 512, 512);
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
+    return t;
+  }
+
+  function init3D() {
+    UP = new THREE.Vector3(0, 1, 0);
+    FACE_N = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]].map(a => new THREE.Vector3(a[0], a[1], a[2]));
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+    stage.prepend(renderer.domElement);
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0e141c);
+    scene.fog = new THREE.Fog(0x0e141c, 22, 40);
+    camera = new THREE.PerspectiveCamera(36, 4 / 3, 0.1, 100);
+
+    scene.add(new THREE.HemisphereLight(0xfff1dc, 0x101826, 0.55));
+    const key = new THREE.DirectionalLight(0xffe6c0, 1.25);
+    key.position.set(-4, 14, 7); key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    Object.assign(key.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 45 });
+    key.shadow.radius = 4; key.shadow.bias = -0.0005;
+    scene.add(key);
+    const rim = new THREE.PointLight(0xdcab55, 0.6, 30); rim.position.set(6, 5, -6); scene.add(rim);
+
+    // table, tray floor, walls, rail
+    const table = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshStandardMaterial({ color: 0x05080c, roughness: 1 }));
+    table.rotation.x = -Math.PI / 2; table.position.y = -0.01; table.receiveShadow = true; scene.add(table);
+    trayMats = {
+      felt: new THREE.MeshStandardMaterial({ map: feltTexture(), roughness: 1 }),
+      wall: new THREE.MeshStandardMaterial({ color: 0x1d2c3e, roughness: .35, metalness: .2 }),
+      brass: new THREE.MeshStandardMaterial({ color: 0xdcab55, roughness: .3, metalness: .85 }),
+      rail: new THREE.MeshStandardMaterial({ color: 0x182637, roughness: .4, metalness: .15 }),
+    };
+    for (let i = 0; i < 5; i++) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.55, 48), new THREE.MeshBasicMaterial({ color: 0xdcab55, transparent: true, opacity: .18 }));
+      ring.rotation.x = -Math.PI / 2; scene.add(ring); rings.push(ring);
+    }
+
+    // physics
+    world = new CANNON.World();
+    world.gravity.set(0, -48, 0);
+    world.broadphase = new CANNON.NaiveBroadphase();
+    world.solver.iterations = 14;
+    world.allowSleep = true;
+    const diceMat = new CANNON.Material('dice'), floorMat = new CANNON.Material('floor'), wallPM = new CANNON.Material('wall');
+    // firm contacts (high stiffness, low relaxation) so dice clack instead of sinking in; little bounce, felt-like friction
+    const firm = { contactEquationStiffness: 1e8, contactEquationRelaxation: 2.5, frictionEquationStiffness: 1e8, frictionEquationRelaxation: 2.5 };
+    world.addContactMaterial(new CANNON.ContactMaterial(floorMat, diceMat, { friction: 0.5, restitution: 0.12, ...firm }));
+    world.addContactMaterial(new CANNON.ContactMaterial(wallPM, diceMat, { friction: 0.25, restitution: 0.3, ...firm }));
+    world.addContactMaterial(new CANNON.ContactMaterial(diceMat, diceMat, { friction: 0.3, restitution: 0.2, ...firm }));
+    const plane = (mat, pos, axis, ang) => {
+      const b = new CANNON.Body({ mass: 0, material: mat, shape: new CANNON.Plane() });
+      b.position.set(pos[0], pos[1], pos[2]);
+      if (axis) b.quaternion.setFromAxisAngle(new CANNON.Vec3(axis[0], axis[1], axis[2]), ang);
+      b.isWall = true; world.addBody(b);
+      return b;
+    };
+    plane(floorMat, [0, 0, 0], [1, 0, 0], -Math.PI / 2);
+    trayMats.wallPM = wallPM;
+    buildTray(trayFor('wide'));
+    plane(wallPM, [0, 9, 0], [1, 0, 0], Math.PI / 2);
+
+    const geo = roundedBox(DS, 0.1, 6);
+    const tex = {}; [1,2,3,4,5,6].forEach(n => tex[n] = faceTexture(n));
+    for (let i = 0; i < 5; i++) {
+      const mats = FACE_VALS.map(n => new THREE.MeshStandardMaterial({ map: tex[n], roughness: .32, metalness: 0, emissive: 0xdcab55, emissiveIntensity: 0 }));
+      const m = new THREE.Mesh(geo, mats);
+      m.castShadow = true; m.userData.i = i; scene.add(m); meshes.push(m);
+      const b = new CANNON.Body({ mass: 1, material: diceMat, shape: new CANNON.Box(new CANNON.Vec3(HS, HS, HS)) });
+      b.linearDamping = 0.12; b.angularDamping = 0.3; b.sleepSpeedLimit = 0.15; b.sleepTimeLimit = 0.4;
+      b.addEventListener('collide', e => onHit(i, e));
+      world.addBody(b); bodies.push(b);
+    }
+    raycaster = new THREE.Raycaster();
+
+    const ro = new ResizeObserver(fit); ro.observe(stage); fit();
+    stage.addEventListener('pointerdown', onDown);
+    stage.addEventListener('pointermove', onMove);
+    stage.addEventListener('pointerup', onUp);
+    stage.addEventListener('pointercancel', onUp);
+    let last = performance.now();
+    const loop = t => {
+      const dt = Math.min(0.05, (t - last) / 1000); last = t;
+      stepTweens(t);
+      world.step(1 / 120, dt, 10);
+      for (let i = 0; i < 5; i++) { meshes[i].position.copy(bodies[i].position); meshes[i].quaternion.copy(bodies[i].quaternion); }
+      if (flying) checkSettle(t);
+      renderer.render(scene, camera);
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
+  let portrait = false, tray = null;
+  // Tray interior bounds plus the hold rail. 'wide' suits landscape; 'tall' is sized to fill a portrait stage,
+  // with the play area filling the view and the hold row along the bottom edge.
+  function trayFor(kind, a) {
+    if (kind === 'wide') return { kind, x0: -5, x1: 5, z0: -3.4, z1: 2.6, rc: new THREE.Vector3(0, 0, 3.95), ax: new THREE.Vector3(1, 0, 0), sp: 1.5, rl: 8.2 };
+    const W = 6.2, Vh = W / a, railX = -Vh / 2 + 1.25;
+    return { kind, a, x0: railX + 1.1, x1: Vh / 2 - 0.45, z0: -W / 2 + 0.45, z1: W / 2 - 0.45, rc: new THREE.Vector3(railX, 0, 0), ax: new THREE.Vector3(0, 0, 1), sp: 1.12, rl: 5.9 };
+  }
+  const tc = () => ({ x: (tray.x0 + tray.x1) / 2, z: (tray.z0 + tray.z1) / 2 });
+  const slotPos = j => tray.rc.clone().addScaledVector(tray.ax, (j - 2) * tray.sp).setY(HS + 0.08);
+  const onRail = v => tray.kind === 'wide' ? v.z > tray.z1 : v.x < tray.x0;
+  const unholdPos = i => tray.kind === 'wide' ? new THREE.Vector3((i - 2) * 1.4, HS + 0.02, tray.z1 - 0.8) : new THREE.Vector3(tray.x0 + 0.8, HS + 0.02, (i - 2) * 0.9);
+  const restPos = i => tray.kind === 'wide' ? new THREE.Vector3((i - 2) * 1.5, HS, -0.3 + (i % 2) * 0.6) : new THREE.Vector3(tc().x + (i - 2) * 1.2, HS, ((i % 2) - 0.5) * 1.2);
+  const byValue = (a, b) => state.dice[a].v - state.dice[b].v || a - b;
+  const heldOrder = () => [0,1,2,3,4].filter(i => state.dice[i].held).sort(byValue);
+  const readoutOrder = () => state.rolled && !rolling ? [0,1,2,3,4].sort(byValue) : [0,1,2,3,4];
+  function railLayout() {
+    heldOrder().forEach((i, j) => {
+      const b = bodies[i], to = slotPos(j);
+      if (anims[i] && anims[i].to.distanceTo(to) < 0.01) return;
+      if (!anims[i] && Math.hypot(b.position.x - to.x, b.position.z - to.z) < 0.02) return;
+      tweenTo(i, to, faceUpQuat(state.dice[i].v, 0), 380);
+    });
+  }
+  function buildTray(t) {
+    tray = t;
+    const { x0, x1, z0, z1 } = t, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    if (trayGroup) scene.remove(trayGroup);
+    wallBodies.forEach(b => world.removeBody(b));
+    trayGroup = new THREE.Group(); scene.add(trayGroup);
+    const felt = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), trayMats.felt);
+    felt.rotation.x = -Math.PI / 2; felt.position.set(cx, 0, cz); felt.receiveShadow = true; trayGroup.add(felt);
+    const T = 0.4, H = 0.85;
+    const addWall = (w, dd, x, z) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, H, dd), trayMats.wall);
+      m.position.set(x, H / 2, z); m.castShadow = true; m.receiveShadow = true; trayGroup.add(m);
+      const r = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, dd), trayMats.brass);
+      r.position.set(x, H + 0.025, z); trayGroup.add(r);
+    };
+    addWall(x1 - x0 + T * 2, T, cx, z0 - T / 2);
+    addWall(x1 - x0 + T * 2, T, cx, z1 + T / 2);
+    addWall(T, z1 - z0, x0 - T / 2, cz);
+    addWall(T, z1 - z0, x1 + T / 2, cz);
+    const rail = new THREE.Mesh(t.kind === 'wide' ? new THREE.BoxGeometry(t.rl, 0.08, 1.5) : new THREE.BoxGeometry(1.5, 0.08, t.rl), trayMats.rail);
+    rail.position.set(t.rc.x, 0.04, t.rc.z); rail.receiveShadow = true; trayGroup.add(rail);
+    rings.forEach((r, j) => { const p = slotPos(j); r.position.set(p.x, 0.085, p.z); });
+    const plane = (pos, axis, ang) => {
+      const b = new CANNON.Body({ mass: 0, material: trayMats.wallPM, shape: new CANNON.Plane() });
+      b.position.set(pos[0], pos[1], pos[2]);
+      if (axis) b.quaternion.setFromAxisAngle(new CANNON.Vec3(axis[0], axis[1], axis[2]), ang);
+      b.isWall = true; world.addBody(b); return b;
+    };
+    wallBodies = [
+      plane([x0, 0, 0], [0, 1, 0], Math.PI / 2),
+      plane([x1, 0, 0], [0, 1, 0], -Math.PI / 2),
+      plane([0, 0, z0], null, 0),
+      plane([0, 0, z1], [0, 1, 0], Math.PI),
+    ];
+  }
+  function fit() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    const a = w / h;
+    camera.aspect = a;
+    portrait = a < 0.85;
+    const want = portrait ? trayFor('tall', a) : trayFor('wide');
+    if (!tray || want.kind !== tray.kind || (portrait && Math.abs(tray.a - a) > 0.06)) {
+      if (rolling) trayPending = want;
+      else { const first = !tray; buildTray(want); if (state) first ? placeAtRest() : keepDiceInside(); }
+    }
+    const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    let dist;
+    if (portrait) {
+      // straight down; screen-up is +x, screen-right is +z
+      const ta = tray && tray.kind === 'tall' ? tray.a : a; // frame the tray as built, so its edges and the hold row stay in view
+      dist = Math.max(3.1 / (t * a), 3.1 / (t * ta));
+      camera.up.set(1, 0, 0);
+      camera.position.set(0, dist, 0.001);
+      camera.lookAt(0, 0, 0);
+    } else {
+      const k = Math.max(1, 1.22 / a);
+      const target = new THREE.Vector3(0, 0, 0.45);
+      camera.up.set(0, 1, 0);
+      camera.position.set(0, 13.2 * k, 8.4 * k).add(new THREE.Vector3(0, 0, 0.45 * (1 - k)));
+      camera.lookAt(target);
+      dist = camera.position.distanceTo(target);
+    }
+    scene.fog.near = dist + 8; scene.fog.far = dist + 26;
+    camera.updateProjectionMatrix();
+  }
+  function onHit(i, e) {
+    const b = bodies[i];
+    if (b.type !== CANNON.Body.DYNAMIC) return;
+    let v = 0;
+    try { v = Math.abs(e.contact.getImpactVelocityAlongNormal()); } catch (_) { return; }
+    if (v < 1.4) return;
+    const now = performance.now();
+    if (now - lastHit[i] < 45) return;
+    lastHit[i] = now;
+    const dieDie = e.body && !e.body.isWall;
+    tick(dieDie ? 2600 + Math.random() * 1600 : 900 + Math.random() * 700, Math.min(0.55, v / 16), dieDie ? 6 : 2.5);
+  }
+
+  /* ---- body helpers ---- */
+  function setKinematic(b) { b.type = CANNON.Body.KINEMATIC; b.mass = 0; b.updateMassProperties(); b.velocity.set(0,0,0); b.angularVelocity.set(0,0,0); }
+  function setDynamic(b) { b.type = CANNON.Body.DYNAMIC; b.mass = 1; b.updateMassProperties(); b.wakeUp(); }
+  function faceUpQuat(v, yaw) {
+    const k = FACE_VALS.indexOf(v);
+    const base = new THREE.Quaternion().setFromUnitVectors(FACE_N[k], UP);
+    return new THREE.Quaternion().setFromAxisAngle(UP, yaw).multiply(base);
+  }
+  function topFace(i) {
+    const q = new THREE.Quaternion(bodies[i].quaternion.x, bodies[i].quaternion.y, bodies[i].quaternion.z, bodies[i].quaternion.w);
+    let bestY = -2, v = 1;
+    FACE_N.forEach((n, k) => { const y = n.clone().applyQuaternion(q).y; if (y > bestY) { bestY = y; v = FACE_VALS[k]; } });
+    return { v, align: bestY };
+  }
+  function tweenTo(i, pos, quat, dur, done) {
+    const b = bodies[i];
+    setKinematic(b);
+    anims[i] = {
+      from: new THREE.Vector3(b.position.x, b.position.y, b.position.z), to: pos,
+      qf: new THREE.Quaternion(b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w), qt: quat,
+      t0: performance.now(), dur: reduce ? 1 : dur, done,
+    };
+  }
+  function stepTweens(t) {
+    anims.forEach((a, i) => {
+      if (!a) return;
+      const k = Math.min(1, (t - a.t0) / a.dur), e = 1 - Math.pow(1 - k, 3);
+      const b = bodies[i];
+      const p = a.from.clone().lerp(a.to, e);
+      p.y += Math.sin(Math.PI * k) * (onRail(a.from) && onRail(a.to) ? 0.45 : 1.1);
+      b.position.set(p.x, p.y, p.z);
+      const q = a.qf.clone().slerp(a.qt, e);
+      b.quaternion.set(q.x, q.y, q.z, q.w);
+      if (k >= 1) { anims[i] = null; a.done && a.done(); }
+    });
+  }
+  // after a tray resize: leave dice where they lie, just nudge any that fall outside the new walls
+  function keepDiceInside() {
+    const m = HS + 0.05, cl = (v, a, b) => Math.max(a, Math.min(b, v));
+    state.dice.forEach((d, i) => {
+      if (d.held || anims[i]) return;
+      const p = bodies[i].position;
+      p.x = cl(p.x, tray.x0 + m, tray.x1 - m); p.z = cl(p.z, tray.z0 + m, tray.z1 - m);
+    });
+    heldOrder().forEach((i, j) => { anims[i] = null; const p = slotPos(j); bodies[i].position.set(p.x, p.y, p.z); });
+  }
+  function placeAtRest() {
+    state.dice.forEach((d, i) => {
+      const b = bodies[i];
+      anims[i] = null;
+      const q = faceUpQuat(d.v, (Math.random() - .5) * 0.6);
+      if (d.held) { setKinematic(b); b.position.copy(slotPos(heldOrder().indexOf(i))); }
+      else { setDynamic(b); b.position.copy(restPos(i)); }
+      b.quaternion.set(q.x, q.y, q.z, q.w);
+      b.velocity.set(0,0,0); b.angularVelocity.set(0,0,0);
+    });
+    flying = false;
+  }
+
+  /* ---- pointer: pick, grab, throw ---- */
+  function ndcOf(e) {
+    const r = stage.getBoundingClientRect();
+    return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  }
+  function planePoint(ndc, y) {
+    raycaster.setFromCamera(ndc, camera);
+    const out = new THREE.Vector3();
+    return raycaster.ray.intersectPlane(new THREE.Plane(UP, -y), out) ? out : null;
+  }
+  const canThrow = () => !state.over && !rolling && state.rollsLeft > 0 && state.dice.some(d => !d.held) && !anyOpen();
+  const canHold = () => !state.over && !rolling && state.rolled && state.rollsLeft > 0;
+  function onDown(e) {
+    if (anyOpen()) return;
+    audio();
+    const ndc = ndcOf(e);
+    raycaster.setFromCamera(ndc, camera);
+    const hit = raycaster.intersectObjects(meshes)[0];
+    downInfo = { x: e.clientX, y: e.clientY, die: hit ? hit.object.userData.i : -1 };
+  }
+  function onMove(e) {
+    if (!has3D || !raycaster) return;
+    raycaster.setFromCamera(ndcOf(e), camera);
+    const over = canHold() && raycaster.intersectObjects(meshes).length > 0;
+    stage.style.cursor = over ? 'pointer' : '';
+  }
+  function onUp(e) {
+    if (downInfo && downInfo.die >= 0 && Math.hypot(e.clientX - downInfo.x, e.clientY - downInfo.y) < 10) toggleHold(downInfo.die);
+    downInfo = null;
+  }
+  function release() {
+    const tall = tray.kind === 'tall';
+    const along = 15 + Math.random() * 6, across = (Math.random() - .5) * (tall ? 7 : 12);
+    const vx = tall ? along : across, vz = tall ? across : -along;
+    const free = [];
+    state.dice.forEach((d, i) => {
+      if (d.held) return;
+      free.push(i);
+      const b = bodies[i];
+      setDynamic(b);
+      b.velocity.set(vx + (Math.random() - .5) * 4, 1 + Math.random() * 2.5, vz + (Math.random() - .5) * 4);
+      b.angularVelocity.set((Math.random() - .5) * 40, (Math.random() - .5) * 40, (Math.random() - .5) * 40);
+    });
+    state.rollsLeft--; state.rolled = false; state.last = null; state.note = '';
+    rolling = true; flying = true; flyT0 = performance.now(); calm = 0; nudges = 0;
+    render();
+  }
+  function quickThrow() {
+    if (!canThrow()) return;
+    audio();
+    const free = state.dice.map((d, i) => d.held ? -1 : i).filter(i => i >= 0);
+    free.forEach((i, k) => {
+      anims[i] = null;
+      const b = bodies[i]; setKinematic(b);
+      const off = (k - (free.length - 1) / 2) * 0.85;
+      if (tray.kind === 'tall') b.position.set(tray.x0 + 1.2, GY, off);
+      else b.position.set(off * 1.15, GY, tray.z1 - 1.2);
+    });
+    tick(3000, .35, 6);
+    release();
+  }
+  function checkSettle(t) {
+    const free = state.dice.map((d, i) => d.held ? -1 : i).filter(i => i >= 0);
+    const moving = free.some(i => bodies[i].velocity.length() > 0.1 || bodies[i].angularVelocity.length() > 0.2);
+    calm = moving ? 0 : calm + 1;
+    if (calm < 16 && t - flyT0 < 9000) return;
+    const faces = free.map(i => ({ i, ...topFace(i) }));
+    const cocked = faces.filter(f => f.align < 0.94);
+    if (cocked.length && nudges < 4) {
+      nudges++; calm = 0; flyT0 = t - 8300;
+      cocked.forEach(f => { const b = bodies[f.i]; b.wakeUp(); b.velocity.set(-Math.sign(b.position.x - tc().x) * (1.5 + Math.random() * 2), 6, -Math.sign(b.position.z - tc().z) * (1.5 + Math.random() * 2)); b.angularVelocity.set((Math.random() - .5) * 10, (Math.random() - .5) * 10, (Math.random() - .5) * 10); });
+      return;
+    }
+    faces.forEach(f => { state.dice[f.i].v = f.v; });
+    flying = false;
+    settled();
+  }
+
+  /* ================= game flow ================= */
+  function settled() {
+    rolling = false; state.rolled = true;
+    if (trayPending && renderer) { buildTray(trayPending); trayPending = null; keepDiceInside(); fit(); }
+    if (Math.max(...counts(vals())) === 5) {
+      const p = state.players[state.cur];
+      flash(p.scores.five === 50 ? 'Five of a kind again! +100' : 'Five of a kind!');
+      confetti(); chime(true);
+    }
+    render();
+    settleWaiters.splice(0).forEach(f => f());
+  }
+  function flatThrow() { // fallback when WebGL is unavailable
+    if (state.over || rolling || state.rollsLeft <= 0 || state.dice.every(d => d.held)) return;
+    state.dice.forEach(d => { if (!d.held) d.v = rnd6(); });
+    state.rollsLeft--; tick(1800, .3, 3);
+    settled();
+  }
+  function doThrow(fromBot) { if (isBot() && !fromBot) return; has3D ? quickThrow() : flatThrow(); }
+
+  function toggleHold(i, fromBot) {
+    if (!canHold() || (isBot() && !fromBot)) return;
+    const d = state.dice[i];
+    d.held = !d.held;
+    tick(2400, 0.3, 5);
+    if (has3D) {
+      if (!d.held) tweenTo(i, unholdPos(i), faceUpQuat(d.v, (Math.random() - .5) * .8), 380, () => { if (!state.dice[i].held) setDynamic(bodies[i]); });
+      railLayout();
+    }
+    render();
+  }
+  function commit(id, fromBot) {
+    if (rolling || state.over || !state.rolled || (isBot() && !fromBot)) return;
+    const p = state.players[state.cur], L = legal(p, vals());
+    if (!(id in L.scores)) return;
+    p.scores[id] = L.scores[id];
+    if (L.joker && L.bonus) p.fiveBonus += 100;
+    state.last = { p: state.cur, id };
+    const label = CATS.find(c => c.id === id).label;
+    p.lastNote = `+${p.scores[id]} ${label}`;
+    state.note = p.bot ? `The computer scored ${p.scores[id]} in ${label}.` : '';
+    chime(false);
+    state.dice.forEach((d, i) => {
+      if (d.held && has3D) tweenTo(i, unholdPos(i), faceUpQuat(d.v, (Math.random() - .5) * .8), 420, () => setDynamic(bodies[i]));
+      d.held = false;
+    });
+    state.rollsLeft = 3; state.rolled = false; hintIdx = [];
+    state.cur++;
+    if (state.cur >= state.players.length) { state.cur = 0; state.round++; }
+    if (state.round > 13) { state.over = true; state.round = 13; finish(); }
+    else if (state.players.length > 1) flash(state.players[state.cur].bot ? "Computer's turn" : state.mode === 'bot' ? 'Your turn' : state.players[state.cur].name + ' is up');
+    render();
+    if (isBot()) setTimeout(botTurn, 1100);
+  }
+  function finish() {
+    const ranked = state.players.map(p => ({ name: p.name, bot: p.bot, t: totals(p).total })).sort((a, b) => b.t - a.t);
+    const top = ranked[0].t;
+    const humanTop = Math.max(...ranked.filter(r => !r.bot).map(r => r.t));
+    const newBest = best === null || humanTop > best;
+    if (newBest) { best = humanTop; store.set('pips-best', best); }
+    let html;
+    if (state.players.length === 1) {
+      html = `<div class="big">${top}</div><p>${newBest ? 'A new personal best.' : 'Your best is ' + best + '.'} ${top >= 300 ? 'That is an exceptional game.' : top >= 250 ? 'A strong game.' : top >= 200 ? 'A solid game.' : 'A typical game lands a little over 200.'}</p>`;
+    } else {
+      const tie = ranked.filter(r => r.t === top).length > 1;
+      const head = tie ? 'A tie at the top.' : state.mode === 'bot' ? (ranked[0].bot ? 'The computer wins this one.' : 'You beat the computer!') : ranked[0].name + ' wins.';
+      html = `<p>${head}${newBest ? ' New best score on this device.' : ''}</p>
+        <ul class="results">${ranked.map(r => `<li class="${r.t === top ? 'win' : ''}"><span>${r.name}</span><b>${r.t}</b></li>`).join('')}</ul>`;
+    }
+    $('overBody').innerHTML = html;
+    setTimeout(() => { $('over').hidden = false; confetti(); chime(true); $('overAgain').focus(); }, 600);
+  }
+
+  /* ================= computer player ================= */
+  const EXPECT = { ones: 2.1, twos: 5.3, threes: 8.6, fours: 12.2, fives: 15.7, sixes: 19.2, three: 15, four: 9, full: 17, small: 22, large: 15, five: 10, chance: 22 };
+  function catValue(p, id, s) {
+    const roundsLeft = CATS.filter(c => p.scores[c.id] === null).length;
+    let v = s - EXPECT[id] * 0.7;
+    const cat = CATS.find(c => c.id === id);
+    if (cat.n && totals(p).upper < 63) v += (s - 3 * cat.n) * 0.55;
+    if (id === 'chance' && roundsLeft > 3) v -= 4;
+    if (id === 'five' && s === 0 && roundsLeft > 3) v -= 8;
+    return v;
+  }
+  function bestChoice(p, v) {
+    const L = legal(p, v);
+    let bestId = null, bv = -Infinity;
+    for (const id in L.scores) { const x = catValue(p, id, L.scores[id]); if (x > bv) { bv = x; bestId = id; } }
+    return { id: bestId, value: bv + (L.joker && L.bonus ? 100 : 0) };
+  }
+  function chooseHold(p, v) {
+    const seen = {}; let best = { mask: 31, val: bestChoice(p, v).value };
+    for (let mask = 0; mask < 31; mask++) {
+      const kept = [0,1,2,3,4].filter(i => mask >> i & 1);
+      const key = kept.map(i => v[i]).sort().join();
+      if (key in seen) continue;
+      let tot = 0; const N = 140;
+      for (let s = 0; s < N; s++) {
+        const hand = v.map((x, i) => (mask >> i & 1) ? x : rnd6());
+        tot += bestChoice(p, hand).value;
+      }
+      seen[key] = tot / N;
+      if (seen[key] > best.val + 0.4) best = { mask, val: seen[key] };
+    }
+    return best.mask;
+  }
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  async function botTurn() {
+    if (!isBot() || botActing) return;
+    const g = gameId, p = state.players[state.cur];
+    botActing = true; botMsg = 'The computer is picking up the dice…'; render();
+    await sleep(700);
+    while (true) {
+      if (state.rollsLeft === 0) break;
+      while (anyOpen()) { await sleep(300); if (g !== gameId) return; }
+      if (g !== gameId) return;
+      botMsg = 'The computer throws…';
+      const w = new Promise(r => settleWaiters.push(r));
+      doThrow(true);
+      await w; if (g !== gameId) return;
+      botMsg = 'The computer is thinking…'; render();
+      await sleep(800); if (g !== gameId) return;
+      if (state.rollsLeft === 0) break;
+      const mask = chooseHold(p, vals());
+      if (mask === 31) break;
+      for (let i = 0; i < 5; i++) {
+        if (!!(mask >> i & 1) !== state.dice[i].held) { toggleHold(i, true); await sleep(260); if (g !== gameId) return; }
+      }
+      await sleep(500);
+    }
+    const { id } = bestChoice(p, vals());
+    botMsg = `The computer scores ${legal(p, vals()).scores[id]} in ${CATS.find(c => c.id === id).label}.`;
+    render(); setHint(id);
+    await sleep(2000); if (g !== gameId) return;
+    botActing = false;
+    commit(id, true);
+  }
+
+  /* ================= render ================= */
+  const pipCells = (n, tag) => [1,2,3,4,5,6,7,8,9].map(k => PIPS[n].includes(k) ? `<${tag}></${tag}>` : '<span></span>').join('');
+  function render() {
+    const p = state.players[state.cur], multi = state.players.length > 1;
+    $('who').innerHTML = state.over ? 'Final card' : p.bot ? "<em>Computer</em>'s turn" : multi && state.mode !== 'bot' ? `<em>${p.name}</em>'s turn` : 'Your turn';
+    $('round').textContent = state.round;
+    $('modeBtn').textContent = state.mode === 'bot' ? 'vs Computer' : state.mode === '1' ? 'Solo' : state.players.length + ' players';
+    $('modeBtn').title = 'Change mode (starts a new game)';
+    const tots = state.players.map(pl => totals(pl).total), lead = Math.max(...tots);
+    $('board').hidden = !multi;
+    const seat = i => {
+      const pl = state.players[i], on = i === state.cur && !state.over;
+      const tag = pl.bot ? 'CPU' : pl.name === 'You' ? 'YOU' : 'P' + (i + 1);
+      return `<div class="who ${on ? 'cur' : ''}"><span class="av">${tag}</span><span class="nm"><span>${pl.name}${on ? (pl.bot ? ' · throwing' : ' · your turn') : ''}</span><small>${pl.lastNote || '&nbsp;'}</small></span><b>${tots[i]}</b></div>`;
+    };
+    $('seatTop').innerHTML = state.players.map((_, i) => i).filter(i => i > 0).map(seat).join('');
+    $('seatTop').hidden = !multi;
+    $('seatBottom').innerHTML = seat(0);
+    $('board').innerHTML = state.players.map((pl, i) => {
+      const on = i === state.cur && !state.over;
+      return `<div class="chip ${on ? 'cur' : ''} ${tots[i] === lead && lead > 0 ? 'lead' : ''}"><div><span>${pl.name}${on ? ' · throwing' : ''}</span><small>${pl.lastNote || ''}</small></div><b>${tots[i]}</b></div>`;
+    }).join('');
+    $('best').textContent = best === null ? '—' : best;
+    $('soundBtn').textContent = muted ? 'Sound off' : 'Sound on';
+    $('soundBtn').setAttribute('aria-pressed', String(!muted));
+    [...$('lights').querySelectorAll('i')].forEach((el, k) => el.classList.toggle('on', k < state.rollsLeft));
+    $('lights').setAttribute('aria-label', state.rollsLeft + ' throws left');
+
+    const rb = $('rollBtn');
+    rb.disabled = rolling || state.over || state.rollsLeft === 0 || p.bot;
+    rb.textContent = state.over ? 'Game over' : p.bot ? 'Computer’s turn' : rolling ? 'Rolling…' : state.rollsLeft === 0 ? 'Pick a box' : state.rolled ? 'Throw again' : 'Throw';
+
+    const showVals = state.rolled && !rolling;
+    $('readout').innerHTML = readoutOrder().map(i => [state.dice[i], i]).map(([d, i]) =>
+      `<button class="rd ${d.v === 1 ? 'one' : ''} ${d.held ? 'held' : ''} ${showVals ? '' : (d.held ? '' : 'blank')} ${hintIdx.includes(i) ? 'hint' : ''}" data-i="${i}" ${canHold() && !p.bot ? '' : 'disabled'} aria-pressed="${d.held}" aria-label="Die ${i + 1}: ${d.v}${d.held ? ', held' : ''}">${pipCells(d.v, 'i')}</button>`).join('');
+    applyHints();
+
+    const v = vals(), showPot = state.rolled && !rolling && !state.over;
+    const L = showPot ? legal(p, v) : null;
+    let m;
+    if (state.over) m = 'Game over. Start a new game when you are ready.';
+    else if (p.bot) m = botMsg || 'The computer is up.';
+    else if (rolling) m = 'Rolling…';
+    else if (!state.rolled && state.note) m = `<strong>${state.note}</strong> Your turn: press Throw.`;
+    else if (!state.rolled) m = state.round === 1 && state.cur === 0 && !multi ? 'Press Throw to start. You get three throws a turn.' : 'Throw to start the turn.';
+    else if (L && L.joker) m = `<strong>Joker!</strong> ${L.bonus ? '+100 bonus banked. ' : ''}Score it in a highlighted box.`;
+    else if (state.rollsLeft === 0) m = 'Out of throws. Pick a box on the scorecard.';
+    else m = `Tap dice to hold them, then throw again or score now. <strong>${state.rollsLeft}</strong> ${state.rollsLeft === 1 ? 'throw' : 'throws'} left.`;
+    $('msg').innerHTML = `<span>${m}</span>`;
+
+    const head = `<thead><tr><th>Box</th>${state.players.map((pl, i) => `<th class="p ${i === state.cur && !state.over ? 'cur' : ''}">${pl.short}</th>`).join('')}</tr></thead>`;
+    const cell = (id, i) => {
+      const pl = state.players[i], val = pl.scores[id], isCur = i === state.cur && !state.over;
+      const cls = 'v' + (isCur ? ' cur' : '');
+      if (val !== null) {
+        const fresh = state.last && state.last.p === i && state.last.id === id;
+        return `<td class="${cls}"><span class="${fresh ? 'fresh' : ''} ${val === 0 ? 'zero' : ''}">${val}</span></td>`;
+      }
+      if (isCur && L) {
+        if (id in L.scores) { const s = L.scores[id]; return `<td class="${cls}"><button class="pot ${s === 0 ? 'z' : ''}" ${p.bot ? 'disabled' : ''} data-cat="${id}" aria-label="Score ${s} in ${CATS.find(c => c.id === id).label}">${s}</button></td>`; }
+        return `<td class="${cls}"><span class="lock" title="Joker rules">·</span></td>`;
+      }
+      return `<td class="${cls}"></td>`;
+    };
+    const row = c => {
+      const live = L && (c.id in L.scores);
+      const icon = c.n ? `<span class="mini">${pipCells(c.n, 'i')}</span>` : `<span class="glyph">${c.g}</span>`;
+      return `<tr class="cat ${live ? 'live' : ''}" data-cat="${c.id}"><td><span class="lab">${icon}<b><span class="l">${c.label}</span><span class="s">${c.s || c.label}</span></b><small>${c.note}</small></span></td>${state.players.map((_, i) => cell(c.id, i)).join('')}</tr>`;
+    };
+    const T = state.players.map(totals), cols = 1 + state.players.length;
+    $('sheet').innerHTML = head + `<tbody>
+      <tr class="sec"><td colspan="${cols}">Upper<span>bonus at 63</span></td></tr>
+      ${CATS.filter(c => c.n).map(row).join('')}
+      <tr class="sub"><td>Subtotal</td>${T.map(t => `<td class="v">${t.upper}<span class="bar ${t.upper >= 63 ? 'done' : ''}"><i style="width:${Math.min(100, t.upper / 63 * 100)}%"></i></span></td>`).join('')}</tr>
+      <tr class="sub"><td>Bonus +35</td>${T.map(t => `<td class="v ${t.bonus ? 'got' : ''}">${t.bonus ? '+35' : '—'}</td>`).join('')}</tr>
+      <tr class="sec"><td colspan="${cols}">Lower</td></tr>
+      ${CATS.filter(c => !c.n).map(row).join('')}
+      <tr class="sub"><td>Fives +100</td>${state.players.map(pl => `<td class="v ${pl.fiveBonus ? 'got' : ''}">${pl.fiveBonus ? '+' + pl.fiveBonus : '—'}</td>`).join('')}</tr>
+      <tr class="grand"><td>Total</td>${T.map(t => `<td class="v">${t.total}</td>`).join('')}</tr>
+    </tbody>`;
+  }
+    function applyHints() {
+    [...$('readout').children].forEach(el => el.classList.toggle('hint', hintIdx.includes(+el.dataset.i)));
+    if (has3D) meshes.forEach((m, i) => {
+      m.material.forEach(mt => mt.emissiveIntensity = hintIdx.includes(i) ? 0.45 : 0);
+    });
+    if (has3D) { const n = heldOrder().length; rings.forEach((r, j) => r.material.opacity = j < n ? 0.95 : 0.18); }
+  }
+  function setHint(id) {
+    hintIdx = id && state.rolled && !rolling ? contrib(id, vals()) : [];
+    applyHints();
+  }
+
+  /* ================= banner + confetti ================= */
+  let bannerT;
+  function flash(text) {
+    const b = $('banner');
+    b.textContent = text;
+    b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
+    clearTimeout(bannerT); bannerT = setTimeout(() => b.classList.remove('show'), 2300);
+  }
+  const fx = $('fx'), ctx = fx.getContext('2d');
+  let parts = [], raf = 0;
+  function confetti() {
+    if (reduce) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    fx.width = innerWidth * dpr; fx.height = innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const r = stage.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const cols = ['#dcab55', '#f2e9d8', '#f0c674', '#b3362b', '#ebe5d8'];
+    for (let i = 0; i < 140; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 4 + Math.random() * 9;
+      parts.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 6, r: Math.random() * 6.28, vr: (Math.random() - .5) * .4, s: 5 + Math.random() * 6, c: cols[i % cols.length], life: 1, sq: Math.random() < .5 });
+    }
+    if (!raf) raf = requestAnimationFrame(step);
+  }
+  function step() {
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    parts.forEach(p => {
+      p.vy += .32; p.vx *= .985; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.life -= .009;
+      ctx.save(); ctx.globalAlpha = Math.max(0, p.life); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c;
+      if (p.sq) { ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s); ctx.fillStyle = '#1b1e26'; ctx.beginPath(); ctx.arc(0, 0, p.s / 6, 0, 6.28); ctx.fill(); }
+      else { ctx.beginPath(); ctx.arc(0, 0, p.s / 2.4, 0, 6.28); ctx.fill(); }
+      ctx.restore();
+    });
+    parts = parts.filter(p => p.life > 0 && p.y < innerHeight + 40);
+    raf = parts.length ? requestAnimationFrame(step) : 0;
+    if (!raf) ctx.clearRect(0, 0, innerWidth, innerHeight);
+  }
+
+  /* ================= wiring ================= */
+  const anyOpen = () => !$('setup').hidden || !$('over').hidden || !$('rules').hidden;
+  $('rollBtn').addEventListener('click', () => doThrow());
+  $('readout').addEventListener('click', e => { const b = e.target.closest('.rd'); if (b) toggleHold(+b.dataset.i); });
+  $('readout').addEventListener('mouseover', e => { const b = e.target.closest('.rd'); if (has3D && b) meshes.forEach((m, i) => m.material.forEach(mt => mt.emissiveIntensity = i === +b.dataset.i ? 0.3 : (hintIdx.includes(i) ? 0.45 : 0))); });
+  $('readout').addEventListener('mouseleave', applyHints);
+  $('sheet').addEventListener('click', e => { const b = e.target.closest('.pot'); if (b) commit(b.dataset.cat); });
+  $('sheet').addEventListener('mouseover', e => { const tr = e.target.closest('tr.live'); setHint(tr ? tr.dataset.cat : null); });
+  $('sheet').addEventListener('mouseleave', () => setHint(null));
+  $('sheet').addEventListener('focusin', e => { const b = e.target.closest('.pot'); setHint(b ? b.dataset.cat : null); });
+  $('sheet').addEventListener('focusout', () => setHint(null));
+  $('soundBtn').addEventListener('click', () => { muted = !muted; store.set('pips-muted', muted); render(); if (!muted) tick(2400, .3, 5); });
+  $('rulesBtn').addEventListener('click', () => { $('rules').hidden = false; $('rulesClose').focus(); });
+  $('rulesClose').addEventListener('click', () => { $('rules').hidden = true; });
+
+  function openSetup() {
+    pickN = state.mode; syncSeg();
+    $('setupCancel').textContent = state.over ? 'Close' : 'Keep playing';
+    $('setup').hidden = false; $('setupGo').focus();
+  }
+  function syncSeg() { [...$('seg').children].forEach(b => b.setAttribute('aria-checked', String(b.dataset.n === String(pickN)))); }
+  $('seg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { pickN = b.dataset.n; syncSeg(); } });
+  $('newBtn').addEventListener('click', openSetup);
+  $('modeBtn').addEventListener('click', openSetup);
+  $('setupCancel').addEventListener('click', () => { $('setup').hidden = true; });
+  $('setupGo').addEventListener('click', () => { $('setup').hidden = true; store.set('pips-mode', pickN); startGame(pickN); });
+  $('overAgain').addEventListener('click', () => { $('over').hidden = true; startGame(state.mode); });
+  $('overChange').addEventListener('click', () => { $('over').hidden = true; openSetup(); });
+  document.querySelectorAll('.veil').forEach(v => v.addEventListener('click', e => { if (e.target === v && v.id !== 'over') v.hidden = true; }));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { ['setup', 'rules'].forEach(id => $(id).hidden = true); return; }
+    if (anyOpen() || e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target.tagName;
+    if ((e.key === ' ' || e.key === 'Enter') && (tag === 'BUTTON' || tag === 'INPUT')) return;
+    if (e.key === ' ' || e.key === 'r' || e.key === 'R') { e.preventDefault(); doThrow(); }
+    else if (/^[1-5]$/.test(e.key)) toggleHold(readoutOrder()[+e.key - 1]);
+  });
+
+  function startGame(mode) {
+    gameId++; botActing = false; botMsg = ''; settleWaiters = [];
+    state = newState(mode);
+    hintIdx = []; rolling = false;
+    if (renderer) placeAtRest();
+    render();
+    if (state.mode === 'bot') flash('You throw first');
+    else if (state.players.length > 1) flash('Player 1 is up');
+  }
+  function boot(data) {
+    if (has3D && !renderer) { try { init3D(); } catch (err) { console.error(err); } }
+    if (!renderer && has3D === true) stage.insertAdjacentHTML('afterbegin', '<div class="nogl">The 3D tray could not start here. Use the Throw button.</div>');
+    if (!has3D) stage.insertAdjacentHTML('afterbegin', '<div class="nogl">3D needs WebGL, which this browser has turned off. The game still works with the Throw button.</div>');
+    if (data && data.state && Array.isArray(data.state.players) && data.state.mode) {
+      state = data.state; rolling = false; hintIdx = [];
+      state.players.forEach((pl, i) => { if (!pl.short) pl.short = state.players.length === 1 ? 'Score' : 'P' + (i + 1); });
+      if (renderer) placeAtRest();
+      render();
+      if (isBot()) setTimeout(botTurn, 800);
+    } else startGame(pickN);
+  }
+  window.claude?.hot?.snapshot?.(() => ({ state }));
+  const hot = window.claude?.hot;
+  hot?.ready ? hot.ready(boot) : boot(hot?.data ?? {});
+})();
+</script>
+</body>
+</html>
