@@ -81,7 +81,7 @@ button { font: inherit; color: inherit; }
   /* phones: pin the page to the screen so a drag can't bounce it, resize Safari's bars, or pull-to-refresh */
   :root { padding-top: 0 !important; padding-bottom: 0 !important; }
   html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
-  body { position: fixed; inset: 0; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  body { position: fixed; top: 0; left: 0; right: 0; bottom: auto; min-height: 0; height: var(--app-h, 100%); padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
   .app { height: 100%; display: flex; flex-direction: column; padding-block: 8px 10px; }
   .stage { touch-action: none; }
   .layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 10px; margin-top: 10px; align-items: stretch; }
@@ -797,7 +797,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     camera.aspect = a;
     portrait = a < 0.85;
     const want = portrait ? trayFor('tall', a) : trayFor('wide');
-    if (!tray || want.kind !== tray.kind || (portrait && Math.abs(tray.a - a) > 0.06)) {
+    if (!tray || want.kind !== tray.kind || (portrait && Math.abs(tray.a - a) > 0.005)) {
       if (rolling) trayPending = want;
       else { const first = !tray; buildTray(want); if (state) first ? placeAtRest() : keepDiceInside(); }
     }
@@ -1482,11 +1482,21 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
       b.position.set(p.x, p.y, p.z); b.quaternion.set(q.x, q.y, q.z, q.w);
     });
   }
+  // iPhone Home Screen apps under-report the screen height by about the status bar, which left an
+  // empty strip at the bottom. When that happens, size the page from the real screen instead.
+  function fixAppHeight() {
+    if (navigator.standalone !== true) return;
+    const land = matchMedia('(orientation: landscape)').matches;
+    const h = land ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
+    if (h > innerHeight + 1) document.documentElement.style.setProperty('--app-h', h + 'px');
+    else document.documentElement.style.removeProperty('--app-h');
+  }
   function boot(data) {
     if (has3D && !renderer) { try { init3D(); } catch (err) { console.error(err); } }
     if (!renderer && has3D === true) stage.insertAdjacentHTML('afterbegin', '<div class="nogl">The 3D tray could not start here. Use the Throw button.</div>');
     if (!has3D) stage.insertAdjacentHTML('afterbegin', '<div class="nogl">3D needs WebGL, which this browser has turned off. The game still works with the Throw button.</div>');
     try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+    fixAppHeight(); addEventListener('resize', fixAppHeight); addEventListener('orientationchange', () => setTimeout(fixAppHeight, 300));
     const join = new URLSearchParams(location.search).get('join');
     const ok = st => st && Array.isArray(st.players) && st.mode && st.mode !== 'online' && Array.isArray(st.dice);
     const saved = store.get('pips-save', null);
