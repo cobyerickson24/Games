@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261121071506">
+<meta name="pips-build" content="20261121072155">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -297,6 +297,24 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
 .results li.win { box-shadow: inset 0 0 0 1px var(--brass); background: rgba(220,171,85,.08); }
 .results b { font-family: var(--display); font-size: 20px; }
 .results li.win b { color: var(--brass); }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 4px 0 14px; }
+.tile { padding: 11px 8px 9px; border-radius: 12px; text-align: center; background: rgba(255,255,255,.03); box-shadow: inset 0 0 0 1px var(--line); min-width: 0; }
+.tile b { display: block; font-family: var(--display); font-weight: 800; font-size: 22px; color: var(--brass); line-height: 1.1; white-space: nowrap; }
+.tile span { display: block; font-size: 10.5px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-top: 3px; }
+.tile small { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.facts { list-style: none; padding: 0; margin: 0 0 16px; }
+.facts li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 2px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.facts li:last-child { border-bottom: 0; }
+.facts b { font-family: var(--mono); font-weight: 700; font-variant-numeric: tabular-nums; }
+.stats-h { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.recent { list-style: none; padding: 0; margin: 0 0 20px; display: grid; gap: 5px; }
+.recent li { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 10px; background: rgba(255,255,255,.03); font-size: 13px; }
+.recent i { font-style: normal; font-family: var(--mono); font-weight: 700; font-size: 11px; text-align: center; border-radius: 6px; padding: 2px 0; background: rgba(255,255,255,.06); color: var(--muted); }
+.recent i.w { background: rgba(220,171,85,.18); color: var(--brass); }
+.recent span small { color: var(--muted); margin-left: 6px; font-size: 11.5px; }
+.recent b { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.statsEmpty { color: var(--muted); margin: 4px 0 20px; line-height: 1.55; }
+#statsReset.armed { color: var(--zero); box-shadow: inset 0 0 0 1px var(--zero); }
 .big { font-family: var(--display); font-weight: 800; font-size: 56px; color: var(--brass); line-height: 1; margin: 6px 0 4px; }
 .rules { margin: 0 0 20px; padding: 0; list-style: none; display: grid; gap: 10px; font-size: 14px; line-height: 1.5; }
 .rules li { padding-left: 16px; position: relative; }
@@ -341,6 +359,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     <div class="tools">
       <span class="stat">Best <b id="best">&#x2014;</b></span>
       <button class="ghost" id="soundBtn" aria-pressed="true">Sound on</button>
+      <button class="ghost" id="statsBtn">Stats</button>
       <button class="ghost" id="rulesBtn">Rules</button>
       <button class="ghost" id="newBtn">New game</button>
     </div>
@@ -419,6 +438,17 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
   </div>
 </div>
 
+<div class="veil" id="stats" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="statsTitle">
+    <h3 id="statsTitle">Your stats</h3>
+    <div id="statsBody"></div>
+    <div class="row">
+      <button class="ghost" id="statsReset">Reset</button>
+      <button class="roll" id="statsClose">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="veil" id="rules" hidden>
   <div class="panel" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
     <h3 id="rulesTitle">How to play</h3>
@@ -490,6 +520,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
       : Array.from({ length: +mode }, (_, i) => mk('Player ' + (i + 1), 'P' + (i + 1), false));
     return {
       mode: String(mode), players,
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       cur: 0, round: 1, rollsLeft: 3, rolled: false, over: false, last: null,
       dice: Array.from({ length: 5 }, () => ({ v: rnd6(), held: false })),
     };
@@ -1163,6 +1194,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     const humanTop = online() ? totals(state.players[net.me]).total : Math.max(...ranked.filter(r => !r.bot).map(r => r.t));
     const newBest = best === null || humanTop > best;
     if (newBest) { best = humanTop; store.set('pips-best', best); }
+    recordGame();
     let html;
     if (state.players.length === 1) {
       html = `<div class="big">${top}</div><p>${newBest ? 'A new personal best.' : 'Your best is ' + best + '.'} ${top >= 300 ? 'That is an exceptional game.' : top >= 250 ? 'A strong game.' : top >= 200 ? 'A solid game.' : 'A typical game lands a little over 200.'}</p>`;
@@ -1174,6 +1206,63 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     }
     $('overBody').innerHTML = html;
     setTimeout(() => { $('over').hidden = false; confetti(); chime(true); kbFocus($('overAgain')); }, 600);
+  }
+
+  /* ================= stats ================= */
+  // Kept on this device only. Counts games vs the computer, online games and solo games (pass-and-play
+  // games have no single "you", so they are left out).
+  const freshStats = () => ({ games: 0, sum: 0, high: null, bonus: 0, fives: 0, cpu: { w: 0, l: 0, t: 0, streak: 0, bestStreak: 0 }, online: { w: 0, l: 0, t: 0 }, recent: [] });
+  function loadStats() {
+    const s = Object.assign(freshStats(), store.get('pips-stats', {}));
+    s.cpu = Object.assign(freshStats().cpu, s.cpu); s.online = Object.assign(freshStats().online, s.online);
+    return s;
+  }
+  let stats = loadStats();
+  function recordGame() {
+    if (!['bot', '1', 'online'].includes(state.mode)) return;
+    if (state.id && store.get('pips-recorded', null) === state.id) return; // never count one game twice
+    const me = online() ? net.me : 0, p = state.players[me], t = totals(p);
+    const opp = state.players.length > 1 ? totals(state.players[1 - me]).total : null;
+    const r = opp === null ? 's' : t.total > opp ? 'w' : t.total < opp ? 'l' : 't';
+    stats.games++; stats.sum += t.total;
+    stats.high = stats.high === null ? t.total : Math.max(stats.high, t.total);
+    if (t.bonus) stats.bonus++;
+    stats.fives += (p.scores.five === 50 ? 1 : 0) + p.fiveBonus / 100;
+    if (state.mode === 'bot') {
+      const c = stats.cpu; c[r]++;
+      c.streak = r === 'w' ? c.streak + 1 : 0; c.bestStreak = Math.max(c.bestStreak, c.streak);
+    } else if (state.mode === 'online') stats.online[r]++;
+    stats.recent.unshift({ d: Date.now(), m: state.mode, s: t.total, o: opp, r });
+    stats.recent = stats.recent.slice(0, 10);
+    store.set('pips-stats', stats); store.set('pips-recorded', state.id);
+  }
+  function renderStats() {
+    const s = stats, c = s.cpu, o = s.online;
+    if (!s.games) { $('statsBody').innerHTML = '<p class="statsEmpty">No finished games yet. Your stats start counting after your first game against the computer, online, or solo.</p>'; return; }
+    const cpuN = c.w + c.l + c.t, onN = o.w + o.l + o.t, pct = (a, n) => n ? Math.round(100 * a / n) + '%' : '\u2014';
+    const rec = (x) => x.w + '\u2013' + x.l + (x.t ? '\u2013' + x.t : '');
+    const day = d => { const t = new Date(d), now = new Date(); return t.toDateString() === now.toDateString() ? 'today' : t.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); };
+    const who = { bot: 'vs CPU', online: 'Online', '1': 'Solo' };
+    const tag = { w: 'W', l: 'L', t: 'T', s: '\u2022' };
+    $('statsBody').innerHTML = `
+      <div class="tiles">
+        <div class="tile"><b>${cpuN ? rec(c) : '\u2014'}</b><span>vs CPU</span><small>${cpuN ? pct(c.w, cpuN) + ' won' : 'no games'}</small></div>
+        <div class="tile"><b>${Math.round(s.sum / s.games)}</b><span>Average</span><small>${s.games} game${s.games === 1 ? '' : 's'}</small></div>
+        <div class="tile"><b>${s.high}</b><span>Best</span><small>high score</small></div>
+      </div>
+      <ul class="facts">
+        <li><span>Win streak vs CPU</span><b>${c.streak} now \u00b7 ${c.bestStreak} best</b></li>
+        <li><span>Online record</span><b>${onN ? rec(o) : '\u2014'}</b></li>
+        <li><span>Upper bonus earned</span><b>${s.bonus} of ${s.games} \u00b7 ${pct(s.bonus, s.games)}</b></li>
+        <li><span>Five of a kinds scored</span><b>${s.fives}</b></li>
+      </ul>
+      <p class="stats-h">Recent games</p>
+      <ul class="recent">${s.recent.map(g => `<li><i class="${g.r}">${tag[g.r]}</i><span>${who[g.m] || ''}<small>${day(g.d)}</small></span><b>${g.s}${g.o === null ? '' : ' \u2013 ' + g.o}</b></li>`).join('')}</ul>`;
+  }
+  function openStats() {
+    renderStats();
+    $('statsReset').classList.remove('armed'); $('statsReset').textContent = 'Reset'; $('statsReset').hidden = !stats.games;
+    $('stats').hidden = false; kbFocus($('statsClose'));
   }
 
   /* ================= computer player ================= */
@@ -1397,7 +1486,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
   addEventListener('keydown', () => { usingKeys = true; }, true);
   addEventListener('pointerdown', () => { usingKeys = false; }, true);
   function kbFocus(el) { if (usingKeys && el) el.focus({ preventScroll: true }); }
-  const anyOpen = () => !$('setup').hidden || !$('over').hidden || !$('rules').hidden || !$('invite').hidden;
+  const anyOpen = () => !$('setup').hidden || !$('over').hidden || !$('rules').hidden || !$('invite').hidden || !$('stats').hidden;
   $('rollBtn').addEventListener('click', () => doThrow());
   $('readout').addEventListener('click', e => { const b = e.target.closest('.rd'); if (b) toggleHold(+b.dataset.i); });
   $('readout').addEventListener('mouseover', e => { const b = e.target.closest('.rd'); if (has3D && b) meshes.forEach((m, i) => m.material.forEach(mt => mt.emissiveIntensity = i === +b.dataset.i ? 0.3 : (hintIdx.includes(i) ? 0.45 : 0))); });
@@ -1410,6 +1499,13 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
   $('soundBtn').addEventListener('click', () => { muted = !muted; store.set('pips-muted', muted); render(); if (!muted) tick(2400, .3, 5); });
   $('rulesBtn').addEventListener('click', () => { $('rules').hidden = false; kbFocus($('rulesClose')); });
   $('rulesClose').addEventListener('click', () => { $('rules').hidden = true; });
+  $('statsBtn').addEventListener('click', openStats);
+  $('statsClose').addEventListener('click', () => { $('stats').hidden = true; });
+  $('statsReset').addEventListener('click', () => {
+    const b = $('statsReset');
+    if (!b.classList.contains('armed')) { b.classList.add('armed'); b.textContent = 'Tap again to erase'; return; }
+    stats = freshStats(); store.set('pips-stats', stats); openStats();
+  });
 
   function openSetup() {
     pickN = state.mode; syncSeg();
@@ -1438,7 +1534,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
   $('overView').addEventListener('click', () => { $('over').hidden = true; }); // look over the final card
   document.querySelectorAll('.veil').forEach(v => v.addEventListener('click', e => { if (e.target === v && v.id !== 'over' && v.id !== 'invite') v.hidden = true; }));
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { ['setup', 'rules'].forEach(id => $(id).hidden = true); return; }
+    if (e.key === 'Escape') { ['setup', 'rules', 'stats'].forEach(id => $(id).hidden = true); return; }
     if (anyOpen() || e.metaKey || e.ctrlKey || e.altKey) return;
     const tag = e.target.tagName;
     if ((e.key === ' ' || e.key === 'Enter') && (tag === 'BUTTON' || tag === 'INPUT')) return;
@@ -1465,6 +1561,16 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     const add = src => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
     return add('https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js').catch(() => add('https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js'));
   }
+  // How the two phones find a path to each other. STUN finds a direct route; a TURN relay carries the
+  // game when no direct route exists (common on cellular data). The relay PeerJS ships with no longer
+  // exists, so add working relay entries from a TURN provider's dashboard to RELAY.
+  const RELAY = [];
+  const ICE = {
+    iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }, ...RELAY],
+    iceTransportPolicy: new URLSearchParams(location.search).has('relay') && RELAY.length ? 'relay' : 'all', // ?relay forces the relay, for testing
+  };
+  const peerOpts = () => ({ config: ICE, debug: 0 });
+  const SLOW_HELP = 'Still connecting\u2026 Phone-to-phone links are sometimes blocked on cellular data. If it doesn\u2019t connect soon, put both phones on Wi-Fi.';
   const ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const newCode = () => Array.from({ length: 5 }, () => ALPH[Math.floor(Math.random() * ALPH.length)]).join('');
   function inviteStatus(text, err) { const el = $('inviteStatus'); el.textContent = text; el.classList.toggle('err', !!err); }
@@ -1477,9 +1583,21 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     Object.assign(net, { peer: null, conn: null, connected: false, code: null, me: 0 });
     if (location.search.includes('join=')) history.replaceState(null, '', location.pathname);
   }
-  function wire(c) {
+  function wire(c, attempt = 0) {
     net.conn = c;
+    // A link that hasn't opened after a while is usually stuck finding a route: say so, and (on the
+    // joining phone) start a fresh attempt a couple of times.
+    const slow = setTimeout(() => {
+      if (net.conn !== c || c.open || net.connected) return;
+      if (!$('invite').hidden) inviteStatus(SLOW_HELP);
+      if (net.me === 1 && net.peer && attempt < 2) {
+        const again = net.peer.connect('pips-' + net.code, { reliable: true });
+        wire(again, attempt + 1);
+        try { c.close(); } catch (e) {}
+      }
+    }, 12000);
     c.on('open', () => {
+      clearTimeout(slow);
       net.connected = true; clearInterval(net.retry); net.retry = null;
       if (net.me === 0) { $('invite').hidden = true; flash(state.round === 1 && state.cur === 0 && !state.rolled ? 'Opponent joined. You throw first' : 'Opponent is back'); chime(false); }
       else send({ t: 'hello' });
@@ -1501,7 +1619,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     try { await loadPeer(); } catch (e) { inviteStatus('Could not load the online service. Check your connection and try again.', true); return; }
     const open = () => {
       net.code = newCode();
-      const peer = new Peer('pips-' + net.code);
+      const peer = new Peer('pips-' + net.code, peerOpts());
       net.peer = peer;
       peer.on('open', () => {
         const url = location.origin + location.pathname + '?join=' + net.code;
@@ -1529,7 +1647,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     inviteStatus('Connecting\u2026');
     $('invite').hidden = false;
     try { await loadPeer(); } catch (e) { inviteStatus('Could not load the online service. Check your connection and reload.', true); return; }
-    const peer = new Peer();
+    const peer = new Peer(peerOpts());
     net.peer = peer;
     peer.on('open', () => wire(peer.connect('pips-' + code, { reliable: true })));
     peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) {} });
