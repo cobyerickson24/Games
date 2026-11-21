@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261121015116">
+<meta name="pips-build" content="20261121015417">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -217,7 +217,7 @@ button { font: inherit; color: inherit; }
 .lab b { font-weight: 600; font-size: 14px; white-space: nowrap; }
 .lab small { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
 .lab .s { display: none; }
-@media (max-width: 390px) { .lab b { font-size: 10.5px !important; } }
+@media (max-width: 390px) { .lab b { font-size: 10px !important; letter-spacing: -.01em; } }
 @media (max-width: 880px) {
   .lab small, .lab .l, .lab .mini, .lab .glyph { display: none; }
   .lab .s { display: inline; }
@@ -227,8 +227,8 @@ button { font: inherit; color: inherit; }
   .sheet th:first-child, .sheet td:first-child { padding-left: 7px; }
   .sheet thead th { font-size: 9.5px; height: 28px; letter-spacing: .06em; }
   .sheet { table-layout: fixed; }
-  .sheet thead th.p { width: 34px; padding: 0 2px; }
-  .sheet td.v { padding: 0 2px; }
+  .sheet thead th.p { width: 38px; padding: 0 1px; }
+  .sheet td.v { padding: 0 1px; }
   .lab b { overflow: hidden; text-overflow: ellipsis; }
   .sheet .bar { width: auto; max-width: 26px; margin-inline: 4px; }
   .sheet .sec td { height: 24px; padding-top: 6px; font-size: 9px; }
@@ -240,7 +240,7 @@ button { font: inherit; color: inherit; }
   .sheet tr.sub td.v { font-size: 11.5px; }
   .bar { width: 26px; }
   .sheet tr.grand td { height: 38px; font-size: 12px; }
-  .sheet tr.grand td.v { font-size: 14px; }
+  #sheet tr.grand td.v { font-family: var(--mono); font-weight: 700; font-size: 14px; letter-spacing: -.03em; }
 }
 .mini { width: 18px; height: 18px; flex: none; border-radius: 4px; background: var(--bone); display: grid; grid-template: repeat(3,1fr)/repeat(3,1fr); padding: 2.5px; }
 .mini i { width: 3px; height: 3px; border-radius: 50%; background: var(--pip); place-self: center; }
@@ -1206,8 +1206,8 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
   async function botTurn() {
     if (!isBot() || botActing) return;
     const g = gameId, p = state.players[state.cur];
-    botActing = true; botPick = null; botMsg = 'The computer picks up the dice\u2026'; render();
-    await sleep(1000);
+    botActing = true; botPick = null; botMsg = '<strong>CPU throw 1 of 3</strong>\u2026'; render();
+    await sleep(600);
     while (true) {
       if (state.rollsLeft === 0) break;
       while (anyOpen()) { await sleep(300); if (g !== gameId) return; }
@@ -1287,7 +1287,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     const L = showPot ? legal(p, v) : null;
     let m;
     if (state.over) m = 'Game over. Start a new game when you are ready.';
-    else if (p.bot) m = botMsg || 'The computer is up.';
+    else if (p.bot) m = botMsg || 'CPU\u2019s turn';
     else if (online() && !net.connected) m = net.me === 0 && !state.rolled && state.round === 1 ? 'Waiting for your opponent to open the invite link\u2026' : 'Connection lost. Waiting for your opponent to reconnect\u2026';
     else if (remoteTurn()) m = rolling ? 'Your opponent is throwing\u2026' : !state.rolled ? (noteText() ? `<strong>${noteText()}</strong>` : 'Waiting for your opponent to throw\u2026') : 'Your opponent is deciding\u2026';
     else if (rolling) m = 'Rolling\u2026';
