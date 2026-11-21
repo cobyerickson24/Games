@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261121020832">
+<meta name="pips-build" content="20261121053847">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -209,6 +209,8 @@ button { font: inherit; color: inherit; }
 .sheet thead th { font-family: var(--mono); font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; height: 38px; }
 .sheet thead th.p { text-align: center; width: 64px; }
 .sheet thead th.p.cur { color: var(--brass); }
+.sheet .sec td.p { width: 64px; text-align: center; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; color: var(--muted); }
+.sheet .sec td.p.cur { color: var(--brass); }
 .sheet .sec td { height: 30px; padding-top: 10px; font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--brass-deep); font-weight: 700; border-bottom: 1px solid rgba(220,171,85,.22); }
 .sheet .sec td span { color: var(--muted); letter-spacing: .08em; text-transform: none; font-weight: 500; margin-left: 8px; font-size: 11px; }
 .sheet tbody tr.cat td { border-bottom: 1px solid rgba(39,55,73,.55); }
@@ -233,6 +235,7 @@ button { font: inherit; color: inherit; }
   .sheet .bar { width: auto; max-width: 26px; margin-inline: 4px; }
   .sheet .sec td { height: 24px; padding-top: 6px; font-size: 9px; }
   .sheet .sec td span { display: none; }
+  .sheet .sec td.p { width: 38px; padding: 6px 1px 0; font-size: 9.5px; letter-spacing: .06em; }
   td.v { font-size: 12.5px; }
   .pot { height: 24px; font-size: 11.5px; border-radius: 6px; max-width: 32px; }
   .sheet tr.sub td:first-child { font-size: 10.5px; }
@@ -1304,7 +1307,8 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     else m = `Tap dice to hold, then throw or pick a box. <strong>${state.rollsLeft}</strong> left.`;
     $('msg').innerHTML = `<span>${m}</span>`;
 
-    const head = `<thead><tr><th>Box</th>${state.players.map((pl, i) => `<th class="p ${i === state.cur && !state.over ? 'cur' : ''}">${shortOf(i)}</th>`).join('')}</tr></thead>`;
+    // player names sit on the "Upper" line (no separate header row)
+    const names = state.players.map((pl, i) => `<td class="p ${i === state.cur && !state.over ? 'cur' : ''}">${shortOf(i)}</td>`).join('');
     const cell = (id, i) => {
       const pl = state.players[i], val = pl.scores[id], isCur = i === state.cur && !state.over;
       const cls = 'v' + (isCur ? ' cur' : '');
@@ -1324,8 +1328,8 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
       return `<tr class="cat ${live ? 'live' : ''} ${botPick === c.id && p.bot ? 'pick' : ''}" data-cat="${c.id}"><td><span class="lab">${icon}<b><span class="l">${c.label}</span><span class="s">${c.s || c.label}</span></b><small>${c.note}</small></span></td>${state.players.map((_, i) => cell(c.id, i)).join('')}</tr>`;
     };
     const T = state.players.map(totals), cols = 1 + state.players.length;
-    $('sheet').innerHTML = head + `<tbody>
-      <tr class="sec"><td colspan="${cols}">Upper<span>bonus at 63</span></td></tr>
+    $('sheet').innerHTML = `<tbody>
+      <tr class="sec first"><td>Upper<span>bonus at 63</span></td>${names}</tr>
       ${CATS.filter(c => c.n).map(row).join('')}
       <tr class="sub"><td>Subtotal</td>${T.map(t => `<td class="v">${t.upper}<span class="bar ${t.upper >= 63 ? 'done' : ''}"><i style="width:${Math.min(100, t.upper / 63 * 100)}%"></i></span></td>`).join('')}</tr>
       <tr class="sub"><td>Bonus +35</td>${T.map(t => `<td class="v ${t.bonus ? 'got' : ''}">${t.bonus ? '+35' : '\u2014'}</td>`).join('')}</tr>
