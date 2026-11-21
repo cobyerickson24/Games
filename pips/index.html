@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
+<meta name="pips-build" content="20261121013844">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -1598,6 +1599,27 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
       el.innerHTML = '<b style="color:#dcab55">Screen check</b> (screenshot this, tap to close)<br>' + rows.map(r => r[0] + ': <b>' + r[1] + '</b>').join('<br>');
     });
   })();
+  // Auto-update: phones may keep a saved copy of this page for a while. On open, and whenever the app comes
+  // back to the front, ask the server for the newest build (skipping any saved copy) and reload if it's newer.
+  // The game in progress is saved on the device, so a reload picks up where you left off.
+  const BUILD = (document.querySelector('meta[name="pips-build"]') || {}).content || '';
+  async function checkForUpdate() {
+    if (!/^https?:$/.test(location.protocol) || !BUILD || BUILD === 'dev') return;
+    if (rolling || (online() && net.connected)) return; // never interrupt a throw or an online game
+    try {
+      const r = await fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return;
+      const m = (await r.text()).match(/name="pips-build" content="([^"]+)"/);
+      if (!m || m[1] === BUILD) return;
+      const key = 'pips-upd-' + m[1];
+      try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch (e) {}
+      saveGame();
+      const u = new URL(location.href); u.searchParams.set('v', m[1]); u.searchParams.delete('check');
+      location.replace(u.toString());
+    } catch (e) {}
+  }
+  setTimeout(checkForUpdate, 1500);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkForUpdate(); });
   function boot(data) {
     if (has3D && !renderer) { try { init3D(); } catch (err) { console.error(err); } }
     if (!renderer && has3D === true) stage.insertAdjacentHTML('afterbegin', '<div class="nogl">The 3D tray could not start here. Use the Throw button.</div>');
