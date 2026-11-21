@@ -1482,6 +1482,36 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
       b.position.set(p.x, p.y, p.z); b.quaternion.set(q.x, q.y, q.z, q.w);
     });
   }
+  // Hidden diagnostics: triple-tap the logo to show how this device reports its screen size.
+  (() => {
+    let taps = 0, timer = 0;
+    document.querySelector('.brand').addEventListener('click', () => {
+      taps++; clearTimeout(timer); timer = setTimeout(() => { taps = 0; }, 700);
+      if (taps < 3) return;
+      taps = 0;
+      const probe = css => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;' + css; document.body.appendChild(d); const r = d.getBoundingClientRect(); d.remove(); return r; };
+      const unit = u => Math.round(probe('height:100' + u).height);
+      const insets = probe('padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);height:0;box-sizing:content-box');
+      const ins = (() => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;left:-9999px;top:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)'; document.body.appendChild(d); const cs = getComputedStyle(d); const o = [cs.paddingTop, cs.paddingBottom]; d.remove(); return o; })();
+      const rb = el => { const r = document.querySelector(el)?.getBoundingClientRect(); return r ? Math.round(r.top) + '-' + Math.round(r.bottom) : '-'; };
+      const rows = [
+        ['standalone', String(navigator.standalone) + ' / ' + matchMedia('(display-mode: standalone)').matches],
+        ['screen', screen.width + 'x' + screen.height],
+        ['innerHeight', innerHeight], ['outerHeight', outerHeight],
+        ['visualViewport', window.visualViewport ? Math.round(visualViewport.height) + ' @' + Math.round(visualViewport.offsetTop) : '-'],
+        ['docEl.clientHeight', document.documentElement.clientHeight],
+        ['100vh / svh / lvh / dvh', [unit('vh'), unit('svh'), unit('lvh'), unit('dvh')].join(' / ')],
+        ['100% (fixed)', Math.round(probe('height:100%').height)],
+        ['safe-area top / bottom', ins.join(' / ')],
+        ['body', rb('body')], ['.app', rb('.app')], ['scorecard', rb('.card')], ['your seat', rb('#seatBottom')],
+        ['ua', navigator.userAgent.replace(/^.*?\(/, '(').slice(0, 60)],
+      ];
+      let el = document.getElementById('diag');
+      if (!el) { el = document.createElement('div'); el.id = 'diag'; document.body.appendChild(el); el.addEventListener('click', () => el.remove()); }
+      el.style.cssText = 'position:fixed;left:12px;right:12px;top:80px;z-index:60;background:#0b1118;color:#ebe5d8;border:1px solid #dcab55;border-radius:12px;padding:12px 14px;font:12px/1.55 ui-monospace,Menlo,monospace;box-shadow:0 20px 40px rgba(0,0,0,.6)';
+      el.innerHTML = '<b style="color:#dcab55">Screen check</b> (screenshot this, tap to close)<br>' + rows.map(r => r[0] + ': <b>' + r[1] + '</b>').join('<br>');
+    });
+  })();
   function boot(data) {
     if (has3D && !renderer) { try { init3D(); } catch (err) { console.error(err); } }
     if (!renderer && has3D === true) stage.insertAdjacentHTML('afterbegin', '<div class="nogl">The 3D tray could not start here. Use the Throw button.</div>');
