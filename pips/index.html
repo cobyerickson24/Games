@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261121013844">
+<meta name="pips-build" content="20261121014131">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -789,7 +789,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
       g.lineWidth = .7; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
     }
     const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .2, W / 2, H / 2, Math.max(W, H) * .62);
-    vg.addColorStop(0, 'rgba(90,140,190,.10)'); vg.addColorStop(1, 'rgba(0,0,0,.42)');
+    vg.addColorStop(0, 'rgba(90,140,190,.08)'); vg.addColorStop(1, 'rgba(0,0,0,.12)');
     g.fillStyle = vg; g.fillRect(0, 0, W, H);
     const line = (inset, alpha, width) => {
       const m = inset * k, r = 0.18 * k;
@@ -807,8 +807,8 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
   }
   function trayFor(kind, a) {
     if (kind === 'wide') return { kind, x0: -5, x1: 5, z0: -3.4, z1: 2.6, rc: new THREE.Vector3(0, 0, 3.95), ax: new THREE.Vector3(1, 0, 0), sp: 1.5, rl: 8.2 };
-    const W = 5.4, Vh = W / a, railX = -Vh / 2 + 1.0, F = 0.16; // F = frame thickness
-    return { kind, a, x0: railX + 0.84, x1: Vh / 2 - F - 0.14, z0: -W / 2 + F + 0.07, z1: W / 2 - F - 0.07, rc: new THREE.Vector3(railX, 0, 0), ax: new THREE.Vector3(0, 0, 1), sp: 0.98, rl: 5.1 };
+    const W = 5.4, Vh = W / a, railX = -Vh / 2 + 0.8, F = 0.16; // F = frame thickness
+    return { kind, a, vh: Vh, vw: W, x0: railX + 0.84, x1: Vh / 2 - F - 0.14, z0: -W / 2 + F + 0.07, z1: W / 2 - F - 0.07, rc: new THREE.Vector3(railX, 0, 0), ax: new THREE.Vector3(0, 0, 1), sp: 0.98, rl: 5.1 };
   }
   const tc = () => ({ x: (tray.x0 + tray.x1) / 2, z: (tray.z0 + tray.z1) / 2 });
   const slotPos = j => tray.rc.clone().addScaledVector(tray.ax, (j - 2) * tray.sp).setY(HS + 0.08);
@@ -834,22 +834,28 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     trayGroup = new THREE.Group(); scene.add(trayGroup);
     const w = x1 - x0, d = z1 - z0;
     if (trayMats.felt.map) trayMats.felt.map.dispose();
-    trayMats.felt.map = feltMatTexture(w, d); trayMats.felt.needsUpdate = true;
-    const felt = new THREE.Mesh(new THREE.PlaneGeometry(w, d), trayMats.felt);
+    trayMats.felt.map = feltMatTexture(w + 0.12, d + 0.12); trayMats.felt.needsUpdate = true;
+    const felt = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.12, d + 0.12), trayMats.felt); // tucks under the frame: no seam
     felt.rotation.x = -Math.PI / 2; felt.position.set(cx, 0, cz); felt.receiveShadow = true; trayGroup.add(felt);
     // one-piece frame with rounded corners (the physics walls are separate, invisible and full height)
     const T = 0.16, H = 0.3, RI = 0.1;
     const ring = (ow, od, orad, iw, id, irad) => { const sh = rrShape(ow, od, orad); sh.holes.push(rrShape(iw, id, irad)); return sh; };
     const frame = new THREE.Mesh(new THREE.ExtrudeGeometry(ring(w + 2 * T, d + 2 * T, RI + T, w, d, RI),
       { depth: H, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.022, bevelSegments: 3, curveSegments: 12 }), trayMats.wood);
-    frame.rotation.x = -Math.PI / 2; frame.position.set(cx, 0, cz); frame.castShadow = true; frame.receiveShadow = true; trayGroup.add(frame);
+    frame.rotation.x = -Math.PI / 2; frame.position.set(cx, 0, cz); frame.receiveShadow = true; trayGroup.add(frame); // no shadow onto the felt
     const inlay = new THREE.Mesh(new THREE.ExtrudeGeometry(ring(w + T * 1.3, d + T * 1.3, RI + T * .65, w + T * .7, d + T * .7, RI + T * .35),
       { depth: 0.012, bevelEnabled: false, curveSegments: 12 }), trayMats.brass);
     inlay.rotation.x = -Math.PI / 2; inlay.position.set(cx, H + 0.022, cz); trayGroup.add(inlay);
     const wide = t.kind === 'wide', RW = wide ? 1.3 : 1.12, RL = wide ? t.rl : t.rl + 0.1;
-    const rail = new THREE.Mesh(wide ? new THREE.BoxGeometry(RL, 0.08, RW) : new THREE.BoxGeometry(RW, 0.08, RL), trayMats.rail);
+    if (!wide) { // phones: the shelf fills everything below the frame, edge to edge
+      const top = x0 - T + 0.03, bot = -t.vh / 2 - 0.4;
+      const shelf = new THREE.Mesh(new THREE.BoxGeometry(top - bot, 0.08, t.vw + 0.8), trayMats.rail);
+      shelf.position.set((top + bot) / 2, 0.04, 0); shelf.receiveShadow = true; trayGroup.add(shelf);
+    } else {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(RL, 0.08, RW), trayMats.rail);
     rail.position.set(t.rc.x, 0.04, t.rc.z); rail.receiveShadow = true; trayGroup.add(rail);
-    [-1, 1].forEach(side => { // thin brass trim along both long edges of the shelf
+    }
+    if (wide) [-1, 1].forEach(side => { // thin brass trim along both long edges of the shelf
       const trim = new THREE.Mesh(wide ? new THREE.BoxGeometry(RL, 0.03, 0.035) : new THREE.BoxGeometry(0.035, 0.03, RL), trayMats.brass);
       trim.position.set(t.rc.x + (wide ? 0 : side * (RW / 2 - 0.02)), 0.095, t.rc.z + (wide ? side * (RW / 2 - 0.02) : 0));
       trayGroup.add(trim);
