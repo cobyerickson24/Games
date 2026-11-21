@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261121014822">
+<meta name="pips-build" content="20261121015116">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -1217,14 +1217,12 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
       const w = new Promise(r => settleWaiters.push(r));
       doThrow(true);
       await w; if (g !== gameId) return;
-      const rolled = `<strong>CPU throw ${n} of 3:</strong> ${faceList([0, 1, 2, 3, 4])}.`;
-      botMsg = rolled; render();
+      render();
       await sleep(1500); if (g !== gameId) return;
       if (state.rollsLeft === 0) break;
       const mask = chooseHold(p, vals());
-      if (mask === 31) { botMsg = rolled + ' Happy with that.'; render(); await sleep(1100); break; }
-      const keep = [0, 1, 2, 3, 4].filter(i => mask >> i & 1);
-      botMsg = rolled + (keep.length ? ` Keeping ${faceList(keep)}.` : ' Rethrowing everything.'); render();
+      if (mask === 31) { await sleep(600); break; }
+
       for (let i = 0; i < 5; i++) {
         if (!!(mask >> i & 1) !== state.dice[i].held) { toggleHold(i, true); await sleep(450); if (g !== gameId) return; }
       }
@@ -1258,8 +1256,9 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     $('board').hidden = !multi;
     const seat = i => {
       const pl = state.players[i], on = i === state.cur && !state.over;
-      const mine = !pl.bot && (!online() || i === net.me);
-      return `<div class="who ${on ? 'cur' : ''}"><span class="av">${tagOf(i)}</span><span class="nm"><span>${nameOf(i)}${on ? (mine ? ' \u00b7 your turn' : ' \u00b7 throwing') : ''}</span><small>${pl.lastNote || '&nbsp;'}</small></span><b>${tots[i]}</b></div>`;
+      const name = nameOf(i);
+      const label = !on ? name : pl.bot || (online() && i !== net.me) ? name + ' \u00b7 throwing' : name === 'You' ? 'Your turn' : name + '\u2019s turn';
+      return `<div class="who ${on ? 'cur' : ''}"><span class="av">${tagOf(i)}</span><span class="nm"><span>${label}</span><small>${pl.lastNote || '&nbsp;'}</small></span><b>${tots[i]}</b></div>`;
     };
     const meIdx = online() ? net.me : 0;
     $('seatTop').innerHTML = state.players.map((_, i) => i).filter(i => i !== meIdx).map(seat).join('');
