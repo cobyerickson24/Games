@@ -296,8 +296,9 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
   .stage { order: 3; }
   .controls { order: 4; margin-top: 8px; }
   #seatBottom { order: 5; margin-top: 8px; }
-  .act { justify-content: space-between; }
-  .roll { flex: 0 1 auto; padding: 8px 18px; font-size: 12px; box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 4px 12px -6px rgba(220,171,85,.6), 0 1px 0 #6e4f1c; }
+  .act { justify-content: space-between; min-width: 0; }
+  .lights { flex: none; }
+  .roll { flex: 0 1 auto; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; padding: 8px 12px; font-size: 12px; box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 4px 12px -6px rgba(220,171,85,.6), 0 1px 0 #6e4f1c; }
   .lights i { width: 9px; height: 9px; }
   .card { display: flex; }
   .sheet { height: 100%; }
@@ -1143,7 +1144,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
 
     const rb = $('rollBtn');
     rb.disabled = rolling || state.over || state.rollsLeft === 0 || locked();
-    rb.textContent = state.over ? 'Game over' : p.bot ? 'Computer\u2019s turn' : remoteTurn() ? (net.connected ? 'Their turn' : 'Waiting\u2026') : rolling ? 'Rolling\u2026' : state.rollsLeft === 0 ? 'Pick a box' : state.rolled ? 'Throw again' : 'Throw';
+    rb.textContent = state.over ? 'Game over' : p.bot ? 'CPU\u2019s turn' : remoteTurn() ? (net.connected ? 'Their turn' : 'Waiting\u2026') : rolling ? 'Rolling\u2026' : state.rollsLeft === 0 ? 'Pick a box' : state.rolled ? 'Throw again' : 'Throw';
 
     const showVals = state.rolled && !rolling;
     $('readout').innerHTML = readoutOrder().map(i => [state.dice[i], i]).map(([d, i]) =>
