@@ -83,6 +83,10 @@ button { font: inherit; color: inherit; }
   html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   body { position: fixed; inset: 0; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
   .app { height: 100%; display: flex; flex-direction: column; padding-block: 8px 10px; }
+  /* iPhone Home Screen apps get a layout area that already stops above the home bar
+     (about a status bar short of the screen), so the bottom margin would only add a gap */
+  html.short-view body { padding-bottom: 0; }
+  html.short-view .app { padding-bottom: 6px; }
   .stage { touch-action: none; }
   .layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 10px; margin-top: 10px; align-items: stretch; }
   .table { position: static; display: flex; flex-direction: column; min-height: 0; }
@@ -1517,6 +1521,8 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     if (!renderer && has3D === true) stage.insertAdjacentHTML('afterbegin', '<div class="nogl">The 3D tray could not start here. Use the Throw button.</div>');
     if (!has3D) stage.insertAdjacentHTML('afterbegin', '<div class="nogl">3D needs WebGL, which this browser has turned off. The game still works with the Throw button.</div>');
     try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+    const shortView = () => document.documentElement.classList.toggle('short-view', navigator.standalone === true && outerHeight - innerHeight > 20);
+    shortView(); addEventListener('resize', shortView);
     const join = new URLSearchParams(location.search).get('join');
     const ok = st => st && Array.isArray(st.players) && st.mode && st.mode !== 'online' && Array.isArray(st.dice);
     const saved = store.get('pips-save', null);
