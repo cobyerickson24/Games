@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261121080859">
+<meta name="pips-build" content="20261121081248">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -225,7 +225,7 @@ button { font: inherit; color: inherit; }
 @media (max-width: 880px) {
   .lab small, .lab .l, .lab .mini, .lab .glyph { display: none; }
   .lab .s { display: inline; }
-  .lab b { font-size: 12.5px; font-weight: 600; }
+  .lab b { font-size: 14px; font-weight: 600; }
   .lab { gap: 0; }
   .sheet th, .sheet td { padding: 0 3px; height: 31px; }
   .sheet th:first-child, .sheet td:first-child { padding-left: 7px; }
@@ -235,16 +235,16 @@ button { font: inherit; color: inherit; }
   .sheet td.v { padding: 0 1px; }
   .lab b { overflow: hidden; text-overflow: ellipsis; }
   .sheet .bar { width: auto; max-width: 26px; margin-inline: 4px; }
-  .sheet .sec td { height: 24px; padding-top: 6px; font-size: 10px; }
+  .sheet .sec td { height: 24px; padding-top: 6px; font-size: 11px; }
   .sheet .sec td span { display: none; }
-  .sheet .sec td.p { width: 38px; padding: 6px 1px 0; font-size: 10.5px; letter-spacing: .06em; }
-  td.v { font-size: 15px; }
-  .pot { height: 26px; font-size: 13.5px; border-radius: 6px; max-width: 34px; }
-  .sheet tr.sub td:first-child { font-size: 11.5px; }
+  .sheet .sec td.p { width: 38px; padding: 6px 1px 0; font-size: 11.5px; letter-spacing: .06em; }
+  td.v { font-size: 18px; }
+  .pot { height: 30px; font-size: 16px; border-radius: 7px; max-width: 36px; }
+  .sheet tr.sub td:first-child { font-size: 12.5px; }
   .sheet tr.sub td { height: 28px; font-size: 11px; }
-  .sheet tr.sub td.v { font-size: 13.5px; }
+  .sheet tr.sub td.v { font-size: 15px; }
   .bar { width: 26px; }
-  .sheet tr.grand td { height: 38px; font-size: 13.5px; }
+  .sheet tr.grand td { height: 38px; font-size: 15px; }
   #sheet tr.grand td { height: 48px; }
   #sheet tr.grand td.v { font-family: "Oswald", "Arial Narrow", var(--mono); font-weight: 600; font-size: 21px; letter-spacing: 0; line-height: 1; } /* tall, narrow digits: 3-digit totals fit */
 }
@@ -351,8 +351,12 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
   .sheet { height: 100%; }
   .sheet th, .sheet td { height: auto; }
   .sheet tbody tr.cat td { height: 30px; }
-  .lab b { font-size: 12px; }
-  td.v { font-size: 13px; }
+  /* phone scorecard text sizes (these win over the general rules above) */
+  .lab b { font-size: 13px; letter-spacing: -.01em; }
+  #sheet td.v { font-size: 18px; }
+  #sheet .pot { height: 30px; font-size: 16px; border-radius: 7px; max-width: 36px; }
+  #sheet tr.sub td:first-child { font-size: 12.5px; }
+  #sheet tr.sub td.v { font-size: 13.5px; }
 }
 </style>
 </head>
