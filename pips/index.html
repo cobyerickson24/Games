@@ -732,8 +732,8 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
   // with the play area filling the view and the hold row along the bottom edge.
   function trayFor(kind, a) {
     if (kind === 'wide') return { kind, x0: -5, x1: 5, z0: -3.4, z1: 2.6, rc: new THREE.Vector3(0, 0, 3.95), ax: new THREE.Vector3(1, 0, 0), sp: 1.5, rl: 8.2 };
-    const W = 5.4, Vh = W / a, railX = -Vh / 2 + 1.15;
-    return { kind, a, x0: railX + 1.05, x1: Vh / 2 - 0.42, z0: -W / 2 + 0.42, z1: W / 2 - 0.42, rc: new THREE.Vector3(railX, 0, 0), ax: new THREE.Vector3(0, 0, 1), sp: 0.98, rl: 5.1 };
+    const W = 5.4, Vh = W / a, railX = -Vh / 2 + 1.0;
+    return { kind, a, x0: railX + 0.82, x1: Vh / 2 - 0.2, z0: -W / 2 + 0.2, z1: W / 2 - 0.2, rc: new THREE.Vector3(railX, 0, 0), ax: new THREE.Vector3(0, 0, 1), sp: 0.98, rl: 5.1 };
   }
   const tc = () => ({ x: (tray.x0 + tray.x1) / 2, z: (tray.z0 + tray.z1) / 2 });
   const slotPos = j => tray.rc.clone().addScaledVector(tray.ax, (j - 2) * tray.sp).setY(HS + 0.08);
@@ -759,7 +759,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     trayGroup = new THREE.Group(); scene.add(trayGroup);
     const felt = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), trayMats.felt);
     felt.rotation.x = -Math.PI / 2; felt.position.set(cx, 0, cz); felt.receiveShadow = true; trayGroup.add(felt);
-    const T = 0.4, H = 0.85;
+    const T = 0.14, H = 0.45; // slim, low walls (the physics walls are invisible and full height)
     const addWall = (w, dd, x, z) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, H, dd), trayMats.wall);
       m.position.set(x, H / 2, z); m.castShadow = true; m.receiveShadow = true; trayGroup.add(m);
@@ -770,7 +770,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     addWall(x1 - x0 + T * 2, T, cx, z1 + T / 2);
     addWall(T, z1 - z0, x0 - T / 2, cz);
     addWall(T, z1 - z0, x1 + T / 2, cz);
-    const rail = new THREE.Mesh(t.kind === 'wide' ? new THREE.BoxGeometry(t.rl, 0.08, 1.5) : new THREE.BoxGeometry(1.5, 0.08, t.rl), trayMats.rail);
+    const rail = new THREE.Mesh(t.kind === 'wide' ? new THREE.BoxGeometry(t.rl, 0.08, 1.5) : new THREE.BoxGeometry(1.2, 0.08, t.rl), trayMats.rail);
     rail.position.set(t.rc.x, 0.04, t.rc.z); rail.receiveShadow = true; trayGroup.add(rail);
     rings.forEach((r, j) => { const p = slotPos(j); r.position.set(p.x, 0.085, p.z); });
     const plane = (pos, axis, ang) => {
