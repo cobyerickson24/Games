@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#0e141c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Pips">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -1527,7 +1527,9 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     if (!renderer && has3D === true) stage.insertAdjacentHTML('afterbegin', '<div class="nogl">The 3D tray could not start here. Use the Throw button.</div>');
     if (!has3D) stage.insertAdjacentHTML('afterbegin', '<div class="nogl">3D needs WebGL, which this browser has turned off. The game still works with the Throw button.</div>');
     try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
-    const shortView = () => document.documentElement.classList.toggle('short-view', navigator.standalone === true && outerHeight - innerHeight > 20);
+    const topInset = () => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top,0px)'; document.body.appendChild(d); const v = parseFloat(getComputedStyle(d).paddingTop) || 0; d.remove(); return v; };
+    // only for the older "draw under the status bar" install, where iOS shortens the page
+    const shortView = () => document.documentElement.classList.toggle('short-view', navigator.standalone === true && outerHeight - innerHeight > 20 && topInset() > 0);
     shortView(); addEventListener('resize', shortView);
     const join = new URLSearchParams(location.search).get('join');
     const ok = st => st && Array.isArray(st.players) && st.mode && st.mode !== 'online' && Array.isArray(st.dice);
