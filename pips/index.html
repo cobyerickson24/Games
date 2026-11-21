@@ -1115,7 +1115,11 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
 
   /* ================= render ================= */
   const pipCells = (n, tag) => [1,2,3,4,5,6,7,8,9].map(k => PIPS[n].includes(k) ? `<${tag}></${tag}>` : '<span></span>').join('');
+  // keep the game in progress on this device, so closing the app doesn't lose it
+  // (online games aren't saved: the connection to the other phone can't be restored from storage)
+  function saveGame() { if (state && !rolling && state.mode !== 'online') store.set('pips-save', state); }
   function render() {
+    saveGame();
     const p = state.players[state.cur], multi = state.players.length > 1;
     $('who').innerHTML = state.over ? 'Final card' : p.bot ? "<em>Computer</em>'s turn" : online() ? (myTurn() ? 'Your turn' : "<em>Opponent</em>'s turn") : multi && state.mode !== 'bot' ? `<em>${p.name}</em>'s turn` : 'Your turn';
     $('round').textContent = state.round;
@@ -1464,14 +1468,21 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     if (has3D && !renderer) { try { init3D(); } catch (err) { console.error(err); } }
     if (!renderer && has3D === true) stage.insertAdjacentHTML('afterbegin', '<div class="nogl">The 3D tray could not start here. Use the Throw button.</div>');
     if (!has3D) stage.insertAdjacentHTML('afterbegin', '<div class="nogl">3D needs WebGL, which this browser has turned off. The game still works with the Throw button.</div>');
-    if (data && data.state && Array.isArray(data.state.players) && data.state.mode) {
+    try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+    const join = new URLSearchParams(location.search).get('join');
+    const ok = st => st && Array.isArray(st.players) && st.mode && st.mode !== 'online' && Array.isArray(st.dice);
+    const saved = store.get('pips-save', null);
+    if (!(data && ok(data.state)) && !join && ok(saved)) {
+      if (saved.over) { startGame(saved.mode); return; }
+      data = { state: saved };
+    }
+    if (!join && data && ok(data.state)) {
       state = data.state; rolling = false; hintIdx = [];
       state.players.forEach((pl, i) => { if (!pl.short) pl.short = state.players.length === 1 ? 'Score' : 'P' + (i + 1); });
       if (renderer) placeAtRest();
       render();
       if (isBot()) setTimeout(botTurn, 800);
     } else {
-      const join = new URLSearchParams(location.search).get('join');
       if (join && /^[A-Z0-9]{5}$/i.test(join)) joinGame(join.toUpperCase());
       else startGame(pickN === 'online' ? 'bot' : pickN);
     }
