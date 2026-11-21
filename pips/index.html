@@ -1067,7 +1067,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
         <ul class="results">${ranked.map(r => `<li class="${r.t === top ? 'win' : ''}"><span>${r.name}</span><b>${r.t}</b></li>`).join('')}</ul>`;
     }
     $('overBody').innerHTML = html;
-    setTimeout(() => { $('over').hidden = false; confetti(); chime(true); $('overAgain').focus(); }, 600);
+    setTimeout(() => { $('over').hidden = false; confetti(); chime(true); kbFocus($('overAgain')); }, 600);
   }
 
   /* ================= computer player ================= */
@@ -1273,6 +1273,12 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
   }
 
   /* ================= wiring ================= */
+  // Move focus into a dialog only for keyboard users. On iPhone Home Screen apps, a script focusing
+  // a button can make iOS shrink the page, which left an empty strip at the bottom.
+  let usingKeys = false;
+  addEventListener('keydown', () => { usingKeys = true; }, true);
+  addEventListener('pointerdown', () => { usingKeys = false; }, true);
+  function kbFocus(el) { if (usingKeys && el) el.focus({ preventScroll: true }); }
   const anyOpen = () => !$('setup').hidden || !$('over').hidden || !$('rules').hidden || !$('invite').hidden;
   $('rollBtn').addEventListener('click', () => doThrow());
   $('readout').addEventListener('click', e => { const b = e.target.closest('.rd'); if (b) toggleHold(+b.dataset.i); });
@@ -1284,13 +1290,13 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
   $('sheet').addEventListener('focusin', e => { const b = e.target.closest('.pot'); setHint(b ? b.dataset.cat : null); });
   $('sheet').addEventListener('focusout', () => setHint(null));
   $('soundBtn').addEventListener('click', () => { muted = !muted; store.set('pips-muted', muted); render(); if (!muted) tick(2400, .3, 5); });
-  $('rulesBtn').addEventListener('click', () => { $('rules').hidden = false; $('rulesClose').focus(); });
+  $('rulesBtn').addEventListener('click', () => { $('rules').hidden = false; kbFocus($('rulesClose')); });
   $('rulesClose').addEventListener('click', () => { $('rules').hidden = true; });
 
   function openSetup() {
     pickN = state.mode; syncSeg();
     $('setupCancel').textContent = state.over ? 'Close' : 'Keep playing';
-    $('setup').hidden = false; $('setupGo').focus();
+    $('setup').hidden = false; kbFocus($('setupGo'));
   }
   function syncSeg() { [...$('seg').children].forEach(b => b.setAttribute('aria-checked', String(b.dataset.n === String(pickN)))); }
   $('seg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { pickN = b.dataset.n; syncSeg(); } });
