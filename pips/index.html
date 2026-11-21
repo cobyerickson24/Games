@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261121020022">
+<meta name="pips-build" content="20261121020832">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -407,6 +407,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     <h3 id="overTitle">Game over</h3>
     <div id="overBody"></div>
     <div class="row">
+      <button class="ghost" id="overView">View scorecard</button>
       <button class="ghost" id="overChange">Change players</button>
       <button class="roll" id="overAgain">Play again</button>
     </div>
@@ -1109,7 +1110,11 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     state.rollsLeft--; tick(1800, .3, 3);
     settled();
   }
-  function doThrow(fromBot) { if (locked() && !fromBot) return; has3D ? quickThrow() : flatThrow(); }
+  function doThrow(fromBot) {
+    if (state.over && !fromBot) { startGame(state.mode); return; } // button reads "Play again" after a game
+    if (locked() && !fromBot) return;
+    has3D ? quickThrow() : flatThrow();
+  }
 
   function toggleHold(i, fromBot) {
     if (!canHold() || (locked() && !fromBot)) return;
@@ -1276,8 +1281,8 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     $('lights').setAttribute('aria-label', state.rollsLeft + ' throws left');
 
     const rb = $('rollBtn');
-    rb.disabled = rolling || state.over || state.rollsLeft === 0 || locked();
-    rb.textContent = state.over ? 'Game over' : p.bot ? 'CPU\u2019s turn' : remoteTurn() ? (net.connected ? 'Their turn' : 'Waiting\u2026') : rolling ? 'Rolling\u2026' : state.rollsLeft === 0 ? 'Pick a box' : state.rolled ? 'Throw again' : 'Throw';
+    rb.disabled = !state.over && (rolling || state.rollsLeft === 0 || locked());
+    rb.textContent = state.over ? 'Play again' : p.bot ? 'CPU\u2019s turn' : remoteTurn() ? (net.connected ? 'Their turn' : 'Waiting\u2026') : rolling ? 'Rolling\u2026' : state.rollsLeft === 0 ? 'Pick a box' : state.rolled ? 'Throw again' : 'Throw';
 
     const showVals = state.rolled && !rolling;
     $('readout').innerHTML = readoutOrder().map(i => [state.dice[i], i]).map(([d, i]) =>
@@ -1287,7 +1292,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     const v = vals(), showPot = state.rolled && !rolling && !state.over;
     const L = showPot ? legal(p, v) : null;
     let m;
-    if (state.over) m = 'Game over. Tap New game to play again.';
+    if (state.over) m = '<strong>Final scores.</strong> Tap Play again for a rematch.';
     else if (p.bot) m = botMsg || 'CPU\u2019s turn';
     else if (online() && !net.connected) m = net.me === 0 && !state.rolled && state.round === 1 ? 'Waiting for your opponent to join\u2026' : 'Connection lost. Waiting for them to reconnect\u2026';
     else if (remoteTurn()) m = rolling ? 'Your opponent is throwing\u2026' : !state.rolled ? (noteText() ? `<strong>${noteText()}</strong>` : 'Waiting for your opponent to throw\u2026') : 'Your opponent is deciding\u2026';
@@ -1424,6 +1429,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     catch (e) { $('inviteLink').select(); inviteStatus('Copy the link above and send it to your opponent.'); }
   });
   $('overChange').addEventListener('click', () => { $('over').hidden = true; openSetup(); });
+  $('overView').addEventListener('click', () => { $('over').hidden = true; }); // look over the final card
   document.querySelectorAll('.veil').forEach(v => v.addEventListener('click', e => { if (e.target === v && v.id !== 'over' && v.id !== 'invite') v.hidden = true; }));
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { ['setup', 'rules'].forEach(id => $(id).hidden = true); return; }
