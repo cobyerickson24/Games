@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261121054115">
+<meta name="pips-build" content="20261121071506">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -109,7 +109,7 @@ button { font: inherit; color: inherit; }
   .chip span { font-size: 11px; }
   .chip small { font-size: 10px; min-height: 0; }
   .chip b { font-size: 16px; }
-  .banner { font-size: 13px; white-space: normal; text-align: center; width: 90%; }
+  .banner { font-size: 13px; white-space: normal; text-align: center; width: 90%; top: 36px; }
 }
 .turn { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 .turn h2 { font-family: var(--display); font-weight: 700; font-size: 15px; margin: 0; }
@@ -152,7 +152,7 @@ button { font: inherit; color: inherit; }
 @media (max-width: 880px) { .stage { aspect-ratio: auto; flex: 1; min-height: 180px; border-radius: 12px; } }
 .nogl { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; color: var(--muted); }
 .banner {
-  position: absolute; left: 50%; top: 16px; transform: translateX(-50%);
+  position: absolute; left: 50%; top: 44px; transform: translateX(-50%);
   font-family: var(--display); font-weight: 800; font-size: clamp(15px, 3.2vw, 22px); color: var(--brass);
   white-space: nowrap; pointer-events: none; opacity: 0; text-shadow: 0 2px 18px rgba(0,0,0,.6), 0 0 24px rgba(220,171,85,.35);
 }
