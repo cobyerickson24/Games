@@ -676,14 +676,15 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     world = new CANNON.World();
     world.gravity.set(0, -48, 0);
     world.broadphase = new CANNON.NaiveBroadphase();
-    world.solver.iterations = 14;
+    world.solver.iterations = 24;
     world.allowSleep = true;
     const diceMat = new CANNON.Material('dice'), floorMat = new CANNON.Material('floor'), wallPM = new CANNON.Material('wall');
     // firm contacts (high stiffness, low relaxation) so dice clack instead of sinking in; little bounce, felt-like friction
     const firm = { contactEquationStiffness: 1e8, contactEquationRelaxation: 2.5, frictionEquationStiffness: 1e8, frictionEquationRelaxation: 2.5 };
-    world.addContactMaterial(new CANNON.ContactMaterial(floorMat, diceMat, { friction: 0.5, restitution: 0.12, ...firm }));
-    world.addContactMaterial(new CANNON.ContactMaterial(wallPM, diceMat, { friction: 0.25, restitution: 0.3, ...firm }));
-    world.addContactMaterial(new CANNON.ContactMaterial(diceMat, diceMat, { friction: 0.3, restitution: 0.2, ...firm }));
+    // hard dice: they ricochet off each other and the walls, and slide off rather than lean or stick together
+    world.addContactMaterial(new CANNON.ContactMaterial(floorMat, diceMat, { friction: 0.42, restitution: 0.22, ...firm }));
+    world.addContactMaterial(new CANNON.ContactMaterial(wallPM, diceMat, { friction: 0.04, restitution: 0.5, ...firm }));
+    world.addContactMaterial(new CANNON.ContactMaterial(diceMat, diceMat, { friction: 0.08, restitution: 0.55, ...firm }));
     const plane = (mat, pos, axis, ang) => {
       const b = new CANNON.Body({ mass: 0, material: mat, shape: new CANNON.Plane() });
       b.position.set(pos[0], pos[1], pos[2]);
@@ -703,7 +704,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
       const m = new THREE.Mesh(geo, mats);
       m.castShadow = true; m.userData.i = i; scene.add(m); meshes.push(m);
       const b = new CANNON.Body({ mass: 1, material: diceMat, shape: new CANNON.Box(new CANNON.Vec3(HS, HS, HS)) });
-      b.linearDamping = 0.12; b.angularDamping = 0.3; b.sleepSpeedLimit = 0.15; b.sleepTimeLimit = 0.4;
+      b.linearDamping = 0.05; b.angularDamping = 0.14; b.sleepSpeedLimit = 0.15; b.sleepTimeLimit = 0.4;
       b.addEventListener('collide', e => onHit(i, e));
       world.addBody(b); bodies.push(b);
     }
@@ -845,8 +846,9 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
   function topFace(i) {
     const q = new THREE.Quaternion(bodies[i].quaternion.x, bodies[i].quaternion.y, bodies[i].quaternion.z, bodies[i].quaternion.w);
     let bestY = -2, v = 1;
-    FACE_N.forEach((n, k) => { const y = n.clone().applyQuaternion(q).y; if (y > bestY) { bestY = y; v = FACE_VALS[k]; } });
-    return { v, align: bestY };
+    let top = null;
+    FACE_N.forEach((n, k) => { const w = n.clone().applyQuaternion(q); if (w.y > bestY) { bestY = w.y; v = FACE_VALS[k]; top = w; } });
+    return { v, align: bestY, n: top };
   }
   function tweenTo(i, pos, quat, dur, done) {
     const b = bodies[i];
@@ -955,18 +957,34 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     tick(3000, .35, 6);
     release();
   }
+  // A real die can't rest propped on an edge or sit on another die. When one nearly stops like that,
+  // let it fall the way gravity would: tip it about its lowest edge onto the nearest face, or slide it off.
+  function settleHelp(free) {
+    free.forEach(i => {
+      const b = bodies[i], v = b.velocity.length(), w = b.angularVelocity.length();
+      if (v > 0.7 || w > 2) return;
+      const f = topFace(i);
+      if (f.align < 0.985) {
+        const axis = f.n.clone().cross(UP).normalize();
+        const k = 2.5 + 4 * (1 - f.align);
+        b.wakeUp();
+        b.angularVelocity.set(axis.x * k, axis.y * k, axis.z * k);
+      }
+      if (b.position.y > HS * 1.6 && v < 0.4) {
+        const dx = b.position.x - tc().x, dz = b.position.z - tc().z, d = Math.hypot(dx, dz) || 1;
+        b.wakeUp(); b.velocity.set(-dx / d * 2.2 + (Math.random() - .5), 0.6, -dz / d * 2.2 + (Math.random() - .5));
+      }
+    });
+  }
   function checkSettle(t) {
     const free = state.dice.map((d, i) => d.held ? -1 : i).filter(i => i >= 0);
+    if (t - flyT0 > 500) settleHelp(free);
     const moving = free.some(i => bodies[i].velocity.length() > 0.1 || bodies[i].angularVelocity.length() > 0.2);
     calm = moving ? 0 : calm + 1;
     if (calm < 16 && t - flyT0 < 9000) return;
     const faces = free.map(i => ({ i, ...topFace(i) }));
     const cocked = faces.filter(f => f.align < 0.94);
-    if (cocked.length && nudges < 4) {
-      nudges++; calm = 0; flyT0 = t - 8300;
-      cocked.forEach(f => { const b = bodies[f.i]; b.wakeUp(); b.velocity.set(-Math.sign(b.position.x - tc().x) * (1.5 + Math.random() * 2), 6, -Math.sign(b.position.z - tc().z) * (1.5 + Math.random() * 2)); b.angularVelocity.set((Math.random() - .5) * 10, (Math.random() - .5) * 10, (Math.random() - .5) * 10); });
-      return;
-    }
+    if (cocked.length && nudges < 6) { nudges++; calm = 0; return; } // settleHelp is still tipping them flat
     faces.forEach(f => { state.dice[f.i].v = f.v; });
     flying = false;
     settled();
