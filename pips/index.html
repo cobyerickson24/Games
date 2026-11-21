@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261121014616">
+<meta name="pips-build" content="20261121014822">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -1612,6 +1612,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
       const ins = (() => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;left:-9999px;top:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)'; document.body.appendChild(d); const cs = getComputedStyle(d); const o = [cs.paddingTop, cs.paddingBottom]; d.remove(); return o; })();
       const rb = el => { const r = document.querySelector(el)?.getBoundingClientRect(); return r ? Math.round(r.top) + '-' + Math.round(r.bottom) : '-'; };
       const rows = [
+        ['build', ((document.querySelector('meta[name="pips-build"]') || {}).content || '?')],
         ['standalone', String(navigator.standalone) + ' / ' + matchMedia('(display-mode: standalone)').matches],
         ['screen', screen.width + 'x' + screen.height],
         ['innerHeight', innerHeight], ['outerHeight', outerHeight],
