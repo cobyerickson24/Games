@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261121014131">
+<meta name="pips-build" content="20261121014616">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -89,7 +89,7 @@ button { font: inherit; color: inherit; }
   html.short-view body { padding-bottom: 0; }
   html.short-view .app { padding-bottom: 6px; }
   .stage { touch-action: none; }
-  .layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 10px; margin-top: 10px; align-items: stretch; }
+  .layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(150px, .82fr); /* scorecard a bit narrower: more room for the tray */ grid-template-rows: minmax(0, 1fr); gap: 10px; margin-top: 10px; align-items: stretch; }
   .table { position: static; display: flex; flex-direction: column; min-height: 0; }
   .card { min-height: 0; overflow: auto; overscroll-behavior: contain; border-radius: 14px; padding: 0 2px 6px; -webkit-overflow-scrolling: touch; }
   .top { gap: 8px; flex-wrap: nowrap; }
@@ -217,6 +217,7 @@ button { font: inherit; color: inherit; }
 .lab b { font-weight: 600; font-size: 14px; white-space: nowrap; }
 .lab small { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
 .lab .s { display: none; }
+@media (max-width: 390px) { .lab b { font-size: 10.5px !important; } }
 @media (max-width: 880px) {
   .lab small, .lab .l, .lab .mini, .lab .glyph { display: none; }
   .lab .s { display: inline; }
@@ -225,7 +226,11 @@ button { font: inherit; color: inherit; }
   .sheet th, .sheet td { padding: 0 3px; height: 31px; }
   .sheet th:first-child, .sheet td:first-child { padding-left: 7px; }
   .sheet thead th { font-size: 9.5px; height: 28px; letter-spacing: .06em; }
-  .sheet thead th.p { width: 32px; }
+  .sheet { table-layout: fixed; }
+  .sheet thead th.p { width: 34px; padding: 0 2px; }
+  .sheet td.v { padding: 0 2px; }
+  .lab b { overflow: hidden; text-overflow: ellipsis; }
+  .sheet .bar { width: auto; max-width: 26px; margin-inline: 4px; }
   .sheet .sec td { height: 24px; padding-top: 6px; font-size: 9px; }
   .sheet .sec td span { display: none; }
   td.v { font-size: 12.5px; }
@@ -248,6 +253,9 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
 .pot { width: 100%; max-width: 54px; height: 30px; border-radius: 8px; cursor: pointer; border: 1px dashed rgba(220,171,85,.55); background: rgba(220,171,85,.06); font-family: var(--mono); font-weight: 700; font-size: 14px; color: var(--brass); transition: background .15s, transform .15s; }
 .pot:hover, .pot:focus-visible { background: var(--brass); color: #1d1505; border-style: solid; transform: scale(1.06); }
 .pot:disabled { cursor: default; opacity: .55; transform: none; }
+tr.cat.pick td { background: rgba(220,171,85,.14) !important; }
+tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-style: solid; animation: pickPulse .7s ease-in-out infinite alternate; }
+@keyframes pickPulse { from { box-shadow: 0 0 0 0 rgba(220,171,85,.0); } to { box-shadow: 0 0 0 4px rgba(220,171,85,.35); } }
 .pot.z { color: var(--zero); border-color: rgba(210,122,102,.4); background: transparent; }
 .pot.z:hover, .pot.z:focus-visible { background: var(--zero); color: #1d1505; }
 .lock { color: #4a5868; font-size: 12px; }
@@ -847,6 +855,10 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
       { depth: 0.012, bevelEnabled: false, curveSegments: 12 }), trayMats.brass);
     inlay.rotation.x = -Math.PI / 2; inlay.position.set(cx, H + 0.022, cz); trayGroup.add(inlay);
     const wide = t.kind === 'wide', RW = wide ? 1.3 : 1.12, RL = wide ? t.rl : t.rl + 0.1;
+    if (!wide) { // phones: walnut everywhere outside the felt, so the play area is one wooden board
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(t.vh + 2, t.vw + 2), trayMats.wood);
+      board.rotation.x = -Math.PI / 2; board.position.set(0, -0.004, 0); board.receiveShadow = true; trayGroup.add(board);
+    }
     if (!wide) { // phones: the shelf fills everything below the frame, edge to edge
       const top = x0 - T + 0.03, bot = -t.vh / 2 - 0.4;
       const shelf = new THREE.Mesh(new THREE.BoxGeometry(top - bot, 0.08, t.vw + 0.8), trayMats.rail);
@@ -1187,34 +1199,46 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     return best.mask;
   }
   const sleep = ms => new Promise(r => setTimeout(r, ms));
+  // The computer plays at a pace you can follow: it says what it rolled and what it's keeping,
+  // moves held dice one at a time, and lights up the box it picks before scoring.
+  let botPick = null;
+  const faceList = idx => idx.map(i => state.dice[i].v).sort((a, b) => a - b).join(' ');
   async function botTurn() {
     if (!isBot() || botActing) return;
     const g = gameId, p = state.players[state.cur];
-    botActing = true; botMsg = 'The computer is picking up the dice\u2026'; render();
-    await sleep(700);
+    botActing = true; botPick = null; botMsg = 'The computer picks up the dice\u2026'; render();
+    await sleep(1000);
     while (true) {
       if (state.rollsLeft === 0) break;
       while (anyOpen()) { await sleep(300); if (g !== gameId) return; }
       if (g !== gameId) return;
-      botMsg = 'The computer throws\u2026';
+      const n = 3 - state.rollsLeft + 1;
+      botMsg = `<strong>CPU throw ${n} of 3</strong>\u2026`;
       const w = new Promise(r => settleWaiters.push(r));
       doThrow(true);
       await w; if (g !== gameId) return;
-      botMsg = 'The computer is thinking\u2026'; render();
-      await sleep(800); if (g !== gameId) return;
+      const rolled = `<strong>CPU throw ${n} of 3:</strong> ${faceList([0, 1, 2, 3, 4])}.`;
+      botMsg = rolled; render();
+      await sleep(1500); if (g !== gameId) return;
       if (state.rollsLeft === 0) break;
       const mask = chooseHold(p, vals());
-      if (mask === 31) break;
+      if (mask === 31) { botMsg = rolled + ' Happy with that.'; render(); await sleep(1100); break; }
+      const keep = [0, 1, 2, 3, 4].filter(i => mask >> i & 1);
+      botMsg = rolled + (keep.length ? ` Keeping ${faceList(keep)}.` : ' Rethrowing everything.'); render();
       for (let i = 0; i < 5; i++) {
-        if (!!(mask >> i & 1) !== state.dice[i].held) { toggleHold(i, true); await sleep(260); if (g !== gameId) return; }
+        if (!!(mask >> i & 1) !== state.dice[i].held) { toggleHold(i, true); await sleep(450); if (g !== gameId) return; }
       }
-      await sleep(500);
+      await sleep(900); if (g !== gameId) return;
     }
     const { id } = bestChoice(p, vals());
-    botMsg = `The computer scores ${legal(p, vals()).scores[id]} in ${CATS.find(c => c.id === id).label}.`;
+    const pts = legal(p, vals()).scores[id];
+    botPick = id;
+    botMsg = `<strong>CPU scores ${pts}</strong> in ${CATS.find(c => c.id === id).label}.`;
     render(); setHint(id);
-    await sleep(2000); if (g !== gameId) return;
-    botActing = false;
+    const row = document.querySelector(`tr[data-cat="${id}"]`);
+    if (row && matchMedia('(max-width: 880px)').matches) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    await sleep(2400); if (g !== gameId) return;
+    botActing = false; botPick = null;
     commit(id, true);
   }
 
@@ -1292,7 +1316,7 @@ td.v .fresh { display: inline-block; animation: pop .6s cubic-bezier(.3,1.6,.5,1
     const row = c => {
       const live = L && (c.id in L.scores);
       const icon = c.n ? `<span class="mini">${pipCells(c.n, 'i')}</span>` : `<span class="glyph">${c.g}</span>`;
-      return `<tr class="cat ${live ? 'live' : ''}" data-cat="${c.id}"><td><span class="lab">${icon}<b><span class="l">${c.label}</span><span class="s">${c.s || c.label}</span></b><small>${c.note}</small></span></td>${state.players.map((_, i) => cell(c.id, i)).join('')}</tr>`;
+      return `<tr class="cat ${live ? 'live' : ''} ${botPick === c.id && p.bot ? 'pick' : ''}" data-cat="${c.id}"><td><span class="lab">${icon}<b><span class="l">${c.label}</span><span class="s">${c.s || c.label}</span></b><small>${c.note}</small></span></td>${state.players.map((_, i) => cell(c.id, i)).join('')}</tr>`;
     };
     const T = state.players.map(totals), cols = 1 + state.players.length;
     $('sheet').innerHTML = head + `<tbody>
