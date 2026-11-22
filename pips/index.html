@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261122124500">
+<meta name="pips-build" content="20261122130000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -338,9 +338,10 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
   .roll { flex: 1 1 auto; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; padding: 12px 8px; font-size: clamp(12.5px, 3.6vw, 15px); box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 4px 12px -6px rgba(220,171,85,.6), 0 1px 0 #6e4f1c; }
   .lights i { width: 9px; height: 9px; }
   .card { display: flex; padding: 0 12px 6px 2px; } /* right gap keeps the score columns off the rounded edge */
-  .sheet .sec td { border-bottom-color: rgba(220,171,85,.38); }
-  .sheet .sec td:last-child { position: relative; border-bottom-color: transparent; } /* its line is drawn by ::after alone, so it isn't doubled */
-  .sheet .sec td:last-child::after { content: ""; position: absolute; left: 0; right: -10px; bottom: -1px; height: 1px; background: rgba(220,171,85,.38); } /* divider runs on to the card edge, matching the left */
+  /* Section dividers: every cell draws its piece the same way (no table border), so Safari renders one even line */
+  .sheet .sec td { position: relative; border-bottom-color: transparent; }
+  .sheet .sec td::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: rgba(220,171,85,.38); pointer-events: none; z-index: 1; }
+  .sheet .sec td:last-child::after { right: -10px; } /* divider runs on to the card edge, matching the left */
   .sheet tr.grand td { position: relative; border-top-color: transparent; }
   .sheet tr.grand td::before { content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 1px; background: rgba(220,171,85,.35); }
   .sheet tr.grand td:last-child::before { right: -10px; }
