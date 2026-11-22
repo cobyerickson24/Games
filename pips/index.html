@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261121082734">
+<meta name="pips-build" content="20261122120000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -514,7 +514,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
   let state, rolling = false, hintIdx = [], pickN = store.get('pips-mode', 'bot'), botActing = false, botMsg = '', gameId = 0, settleWaiters = [];
   const isBot = () => !!(state && !state.over && state.players[state.cur].bot);
   // ---- online (two phones, peer-to-peer) ----
-  const net = { peer: null, conn: null, me: 0, code: null, connected: false, lastSend: 0, moving: false, retry: null, targets: [] };
+  const net = { peer: null, conn: null, me: 0, code: null, connected: false, lastSend: 0, moving: false, retry: null, targets: [], lastRecv: 0, resuming: false, hostTimer: null };
   const online = () => !!state && state.mode === 'online';
   const myTurn = () => !online() || state.cur === net.me;
   const remoteTurn = () => online() && !state.over && (state.cur !== net.me || !net.connected);
@@ -1589,16 +1589,59 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
   const newCode = () => Array.from({ length: 5 }, () => ALPH[Math.floor(Math.random() * ALPH.length)]).join('');
   function inviteStatus(text, err) { const el = $('inviteStatus'); el.textContent = text; el.classList.toggle('err', !!err); }
   function send(m) { try { if (net.conn && net.connected) net.conn.send(m); } catch (e) {} }
-  function sync() { if (online()) send({ t: 'state', state, rolling }); }
+  function sync() { if (!online()) return; state.seq = (state.seq || 0) + 1; saveOnline(); send({ t: 'state', state, rolling }); }
+  // The online game is kept on the phone too, so closing the app (or the phone killing it in the background)
+  // doesn't lose it: reopening the app rejoins the same game room and picks up where it left off.
+  const ONLINE_KEY = 'pips-online', ONLINE_MAX_AGE = 12 * 3600e3;
+  function saveOnline() {
+    if (!online() || !net.code) return;
+    if (state.over) { store.set(ONLINE_KEY, null); return; }
+    store.set(ONLINE_KEY, { code: net.code, me: net.me, state, at: Date.now() });
+  }
+  function savedOnline() {
+    const o = store.get(ONLINE_KEY, null);
+    if (!o || !/^[A-Z0-9]{5}$/.test(o.code || '') || !(o.me === 0 || o.me === 1) || !o.state || o.state.mode !== 'online' || o.state.over || !Array.isArray(o.state.dice)) return null;
+    return Date.now() - (o.at || 0) < ONLINE_MAX_AGE ? o : null;
+  }
+  // A phone that is closed or loses Wi-Fi often vanishes without saying goodbye, so both sides send a small
+  // heartbeat and treat a quiet link as dropped. The joining phone then keeps knocking until the host is back.
+  const BEAT_MS = 2000, QUIET_MS = 8000;
+  function dropLink(why) {
+    const c = net.conn;
+    if (!c && !net.connected) return;
+    const was = net.connected;
+    net.conn = null; net.connected = false;
+    try { c && c.close(); } catch (e) {}
+    if (was) { render(); flash(why || 'Opponent disconnected'); }
+    if (net.me === 1) retryJoin();
+  }
+  setInterval(() => {
+    if (!online() || !net.connected) return;
+    if (document.visibilityState === 'visible' && performance.now() - net.lastRecv > QUIET_MS) { dropLink('Connection lost'); return; }
+    send({ t: 'ping' });
+  }, BEAT_MS);
+  // Coming back to the app: the phone may have closed the links while it was in the background.
+  function wake() {
+    if (!online() || !net.code) return;
+    net.lastRecv = performance.now(); // give a live link a moment to prove itself
+    const p = net.peer;
+    if (!p || p.destroyed) { net.me === 0 ? openRoom(net.code, true) : joinGame(net.code, state); return; }
+    if (p.disconnected) { try { p.reconnect(); } catch (e) {} }
+    if (net.me === 1 && !net.connected) retryJoin(true);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') wake(); });
+  addEventListener('online', wake);
+  addEventListener('pageshow', e => { if (e.persisted) wake(); });
   function leaveOnline() {
-    clearInterval(net.retry); net.retry = null;
+    clearTimeout(net.retry); net.retry = null; clearTimeout(net.hostTimer); net.hostTimer = null;
     try { net.conn && net.conn.close(); } catch (e) {}
     try { net.peer && net.peer.destroy(); } catch (e) {}
-    Object.assign(net, { peer: null, conn: null, connected: false, code: null, me: 0 });
+    Object.assign(net, { peer: null, conn: null, connected: false, code: null, me: 0, resuming: false });
+    store.set(ONLINE_KEY, null);
     if (location.search.includes('join=')) history.replaceState(null, '', location.pathname);
   }
   function wire(c, attempt = 0) {
-    net.conn = c;
+    net.conn = c; net.connAt = performance.now();
     // A link that hasn't opened after a while is usually stuck finding a route: say so, and (on the
     // joining phone) start a fresh attempt a couple of times.
     const slow = setTimeout(() => {
@@ -1612,14 +1655,14 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     }, 12000);
     c.on('open', () => {
       clearTimeout(slow);
-      net.connected = true; clearInterval(net.retry); net.retry = null;
+      net.connected = true; net.lastRecv = performance.now(); clearTimeout(net.retry); net.retry = null;
       if (net.me === 0) { $('invite').hidden = true; flash(state.round === 1 && state.cur === 0 && !state.rolled ? 'Opponent joined. You throw first' : 'Opponent is back'); chime(false); }
-      else send({ t: 'hello' });
+      else send({ t: 'hello', state });
       render();
     });
-    c.on('data', onData);
-    c.on('close', () => { if (net.conn !== c) return; net.connected = false; render(); flash('Opponent disconnected'); if (net.me === 1) retryJoin(); });
-    c.on('error', () => {});
+    c.on('data', m => { if (net.conn === c) net.lastRecv = performance.now(); onData(m); });
+    c.on('close', () => { if (net.conn === c) dropLink(); });
+    c.on('error', () => { if (net.conn === c && !c.open) dropLink(); });
   }
   async function hostGame() {
     leaveOnline();
@@ -1631,59 +1674,106 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     inviteStatus('Setting up a game room\u2026');
     $('invite').hidden = false;
     try { await loadPeer(); } catch (e) { inviteStatus('Could not load the online service. Check your connection and try again.', true); return; }
-    const open = () => {
-      net.code = newCode();
-      const peer = new Peer('pips-' + net.code, peerOpts());
-      net.peer = peer;
-      peer.on('open', () => {
-        const url = location.origin + location.pathname + '?join=' + net.code;
-        $('inviteLink').value = url;
-        $('inviteBox').hidden = false; $('inviteShare').hidden = false;
-        inviteStatus('Waiting for your opponent to join\u2026');
-      });
-      peer.on('connection', c => { if (net.conn && net.conn !== c) { try { net.conn.close(); } catch (e) {} } wire(c); });
-      peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) {} });
-      peer.on('error', e => {
-        if (e.type === 'unavailable-id') { try { peer.destroy(); } catch (x) {} open(); return; }
-        if (!net.connected) inviteStatus('The online service had a problem (' + e.type + '). Close this and try again.', true);
-      });
-    };
-    open();
+    openRoom(newCode(), false);
   }
-  async function joinGame(code) {
-    net.me = 1; net.code = code;
-    state = newState('online'); rolling = false;
-    if (renderer) placeAtRest();
-    render();
-    $('inviteTitle').textContent = 'Joining game';
-    $('inviteText').textContent = 'Connecting to your opponent\u2019s phone\u2026';
-    $('inviteBox').hidden = true; $('inviteShare').hidden = true; $('inviteCancel').textContent = 'Play on my own';
-    inviteStatus('Connecting\u2026');
-    $('invite').hidden = false;
-    try { await loadPeer(); } catch (e) { inviteStatus('Could not load the online service. Check your connection and reload.', true); return; }
-    const peer = new Peer(peerOpts());
+  // Opens the game room. `resume` is a reopened app taking back its own room: the online service can hold
+  // on to the old room name for up to a minute after the app was closed, so keep asking for the same code.
+  function openRoom(code, resume, tries = 0) {
+    clearTimeout(net.hostTimer); net.hostTimer = null;
+    if (net.peer && !net.peer.destroyed) { try { net.peer.destroy(); } catch (e) {} }
+    net.code = code; net.me = 0;
+    const peer = new Peer('pips-' + code, peerOpts());
     net.peer = peer;
-    peer.on('open', () => wire(peer.connect('pips-' + code, { reliable: true })));
-    peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) {} });
+    peer.on('open', () => {
+      saveOnline();
+      if (resume) { render(); return; }
+      const url = location.origin + location.pathname + '?join=' + code;
+      $('inviteLink').value = url;
+      $('inviteBox').hidden = false; $('inviteShare').hidden = false;
+      inviteStatus('Waiting for your opponent to join\u2026');
+    });
+    peer.on('connection', c => { if (net.peer !== peer) return; if (net.conn && net.conn !== c) { try { net.conn.close(); } catch (e) {} } wire(c); });
+    peer.on('disconnected', () => { if (net.peer === peer) { try { peer.reconnect(); } catch (e) {} } });
     peer.on('error', e => {
-      if (e.type === 'peer-unavailable') {
-        if (net.retry) return; // keep retrying quietly after a drop
-        inviteStatus('That game isn\u2019t open anymore. Ask your opponent to send a new link.', true);
-      } else inviteStatus('Connection problem (' + e.type + '). Try reloading.', true);
+      if (net.peer !== peer) return;
+      if (e.type === 'unavailable-id') {
+        try { peer.destroy(); } catch (x) {}
+        if (!resume) { openRoom(newCode(), false); return; }
+        if (tries < 40) net.hostTimer = setTimeout(() => { if (net.peer === peer) openRoom(code, true, tries + 1); }, 3000);
+        return;
+      }
+      if (resume) { // network hiccup while reopening: try again shortly
+        if (['network', 'server-error', 'socket-error', 'socket-closed'].includes(e.type) && tries < 40) net.hostTimer = setTimeout(() => { if (net.peer === peer) openRoom(code, true, tries + 1); }, 3000);
+        return;
+      }
+      if (!net.connected) inviteStatus('The online service had a problem (' + e.type + '). Close this and try again.', true);
     });
   }
-  function retryJoin() {
-    if (net.retry || net.me !== 1) return;
+  async function resumeHost(o) {
+    net.me = 0; net.code = o.code;
+    state = o.state; rolling = false; hintIdx = [];
+    if (renderer) placeAtRest();
+    render();
+    flash('Back in your online game');
+    try { await loadPeer(); } catch (e) { return; }
+    openRoom(o.code, true);
+  }
+  // `saved` is the game this phone already had, when the app was reopened (or the link tapped again) mid-game.
+  async function joinGame(code, saved) {
+    clearTimeout(net.retry); net.retry = null;
+    if (net.peer && !net.peer.destroyed) { try { net.peer.destroy(); } catch (e) {} }
+    net.me = 1; net.code = code; net.resuming = !!saved;
+    state = saved || newState('online'); rolling = false;
+    if (renderer) placeAtRest();
+    render();
+    if (saved) flash('Back in your online game');
+    else {
+      $('inviteTitle').textContent = 'Joining game';
+      $('inviteText').textContent = 'Connecting to your opponent\u2019s phone\u2026';
+      $('inviteBox').hidden = true; $('inviteShare').hidden = true; $('inviteCancel').textContent = 'Play on my own';
+      inviteStatus('Connecting\u2026');
+      $('invite').hidden = false;
+    }
+    try { await loadPeer(); } catch (e) { if (!saved) inviteStatus('Could not load the online service. Check your connection and reload.', true); return; }
+    const peer = new Peer(peerOpts());
+    net.peer = peer;
+    peer.on('open', () => { if (net.peer === peer && !net.connected) wire(peer.connect('pips-' + code, { reliable: true })); });
+    peer.on('disconnected', () => { if (net.peer === peer) { try { peer.reconnect(); } catch (e) {} } });
+    peer.on('error', e => {
+      if (net.peer !== peer) return;
+      if (e.type === 'peer-unavailable') {
+        if (net.resuming || net.retry) { retryJoin(); return; } // the host's app is closed: keep knocking quietly
+        inviteStatus('That game isn\u2019t open anymore. Ask your opponent to send a new link.', true);
+      } else if (net.resuming || net.retry) retryJoin();
+      else inviteStatus('Connection problem (' + e.type + '). Try reloading.', true);
+    });
+  }
+  // Keeps trying to reach the host until they're back (every 3 seconds for the first few minutes, then
+  // every 10), for as long as this phone has the game open.
+  function retryJoin(now) {
+    if (net.me !== 1 || !online() || state.over) return;
+    if (net.retry) { if (!now) return; clearTimeout(net.retry); net.retry = null; }
     let n = 0;
-    net.retry = setInterval(() => {
-      if (net.connected || ++n > 40 || !net.peer) { clearInterval(net.retry); net.retry = null; return; }
-      try { wire(net.peer.connect('pips-' + net.code, { reliable: true })); } catch (e) {}
-    }, 3000);
+    const knock = () => {
+      if (net.connected || !net.peer || !online()) { clearTimeout(net.retry); net.retry = null; return; }
+      if (net.peer.destroyed) { clearTimeout(net.retry); net.retry = null; joinGame(net.code, state); return; }
+      if (net.peer.disconnected) { try { net.peer.reconnect(); } catch (e) {} }
+      else if (!net.conn || (!net.conn.open && performance.now() - net.connAt > 10000)) { try { wire(net.peer.connect('pips-' + net.code, { reliable: true })); } catch (e) {} }
+      n++;
+      net.retry = setTimeout(knock, n < 60 ? 3000 : 10000);
+    };
+    net.retry = setTimeout(knock, now ? 0 : 1500);
   }
   function onData(m) {
     if (!m || typeof m !== 'object') return;
-    if (m.t === 'welcome') { net.me = m.you; applyState(m.state, false); $('invite').hidden = true; flash(state.round === 1 && state.cur === 0 && !state.rolled ? 'Connected. Opponent throws first' : 'Reconnected'); chime(false); }
-    else if (m.t === 'hello') { send({ t: 'welcome', you: 1, state }); sendDice(); }
+    if (m.t === 'ping') return;
+    if (m.t === 'welcome') { net.me = m.you; net.resuming = false; applyState(m.state, false); $('invite').hidden = true; flash(state.round === 1 && state.cur === 0 && !state.rolled ? 'Connected. Opponent throws first' : 'Reconnected'); chime(false); }
+    else if (m.t === 'hello') {
+      // After a drop, whichever phone saw the later move of this same game has the true game: keep that one.
+      const s = m.state;
+      if (s && s.mode === 'online' && s.id === state.id && (s.seq || 0) > (state.seq || 0)) applyState(s, false);
+      send({ t: 'welcome', you: 1, state }); sendDice();
+    }
     else if (m.t === 'state') applyState(m.state, m.rolling);
     else if (m.t === 'dice') applyDice(m.d);
   }
@@ -1708,6 +1798,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     if (!state.over && prev && prev.mode === 'online' && prevCur !== state.cur && (state.round > 1 || state.cur > 0)) flash(myTurn() ? 'Your turn' : "Opponent's turn");
     if (!wasOver && state.over) finish();
     if (!state.over && !$('over').hidden) $('over').hidden = true;
+    saveOnline();
     render();
   }
   function sendDice() {
@@ -1813,6 +1904,12 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     const shortView = () => document.documentElement.classList.toggle('short-view', navigator.standalone === true && outerHeight - innerHeight > 20 && topInset() > 0);
     shortView(); addEventListener('resize', shortView);
     const join = new URLSearchParams(location.search).get('join');
+    const resume = savedOnline();
+    if (resume && (!join || join.toUpperCase() === resume.code)) {
+      if (join) history.replaceState(null, '', location.pathname);
+      if (resume.me === 0) resumeHost(resume); else joinGame(resume.code, resume.state);
+      return;
+    }
     const ok = st => st && Array.isArray(st.players) && st.mode && st.mode !== 'online' && Array.isArray(st.dice);
     const saved = store.get('pips-save', null);
     if (!(data && ok(data.state)) && !join && ok(saved)) {
