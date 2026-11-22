@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261122130000">
+<meta name="pips-build" content="20261122131500">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -473,8 +473,8 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
       <li><b>Hold dice between throws.</b> <span>Click a die in the tray (or below it) and it moves to the rail. Click it again to put it back.</span></li>
       <li><b>Then score one box.</b> <span>Every box gets used once, even for zero. Thirteen turns, thirteen boxes.</span></li>
       <li><b>Upper section:</b> <span>add up the dice showing that number. Reach 63 for a +35 bonus.</span></li>
-      <li><b>Lower section:</b> <span>three or four of a kind score the sum of all dice. Full house 25, small straight 30, large straight 40, five of a kind 50. Chance is any sum.</span></li>
-      <li><b>Extra five of a kind:</b> <span>+100 if you already scored 50 there. It then acts as a joker: use its upper box if open, otherwise any lower box at full value.</span></li>
+      <li><b>Lower section:</b> <span>three or four of a kind score the sum of all dice. Full house 25, small straight 30, large straight 40, Yahtzee (five of a kind) 50. Chance is any sum.</span></li>
+      <li><b>Extra Yahtzee:</b> <span>+100 if you already scored 50 there. It then acts as a joker: use its upper box if open, otherwise any lower box at full value.</span></li>
     </ul>
     <div class="row"><button class="roll" id="rulesClose">Got it</button></div>
   </div>
@@ -500,7 +500,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     { id:'full',   label:'Full house', s:'Full house',      note:'25',  g:'FH' },
     { id:'small',  label:'Small straight', s:'Sm. straight',  note:'30',  g:'4\u2192' },
     { id:'large',  label:'Large straight', s:'Lg. straight',  note:'40',  g:'5\u2192' },
-    { id:'five',   label:'Five of a kind', s:'5 of a kind',  note:'50',  g:'5\u00d7' },
+    { id:'five',   label:'Yahtzee', s:'Yahtzee',  note:'50',  g:'5\u00d7' },
     { id:'chance', label:'Chance',          note:'sum', g:'?' },
   ];
   const LOWER = CATS.filter(c => !c.n).map(c => c.id);
@@ -1149,7 +1149,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     if (trayPending && renderer) { buildTray(trayPending); trayPending = null; keepDiceInside(); lastFit = ''; fit(); }
     if (Math.max(...counts(vals())) === 5) {
       const p = state.players[state.cur];
-      flash(p.scores.five === 50 ? 'Five of a kind again! +100' : 'Five of a kind!');
+      flash(p.scores.five === 50 ? 'Yahtzee again! +100' : 'Yahtzee!');
       confetti(); chime(true);
     }
     render();
@@ -1270,7 +1270,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
         <li><span>Win streak vs CPU</span><b>${c.streak} now \u00b7 ${c.bestStreak} best</b></li>
         <li><span>Online record</span><b>${onN ? rec(o) : '\u2014'}</b></li>
         <li><span>Upper bonus earned</span><b>${s.bonus} of ${s.games} \u00b7 ${pct(s.bonus, s.games)}</b></li>
-        <li><span>Five of a kinds scored</span><b>${s.fives}</b></li>
+        <li><span>Yahtzees scored</span><b>${s.fives}</b></li>
       </ul>
       <p class="stats-h">Recent games</p>
       <ul class="recent">${s.recent.map(g => `<li><i class="${g.r}">${tag[g.r]}</i><span>${who[g.m] || ''}<small>${day(g.d)}</small></span><b>${g.s}${g.o === null ? '' : ' \u2013 ' + g.o}</b></li>`).join('')}</ul>`;
@@ -1442,7 +1442,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
       <tr class="sub"><td>Bonus +35</td>${T.map(t => `<td class="v ${t.bonus ? 'got' : ''}">${t.bonus ? '+35' : '\u2014'}</td>`).join('')}</tr>
       <tr class="sec"><td colspan="${cols}">Lower</td></tr>
       ${CATS.filter(c => !c.n).map(row).join('')}
-      <tr class="sub"><td>Fives +100</td>${state.players.map(pl => `<td class="v ${pl.fiveBonus ? 'got' : ''}">${pl.fiveBonus ? '+' + pl.fiveBonus : '\u2014'}</td>`).join('')}</tr>
+      <tr class="sub"><td${state.players.length <= 2 ? ' style="white-space:nowrap"' : ''}>Yahtzee +100</td>${state.players.map(pl => `<td class="v ${pl.fiveBonus ? 'got' : ''}">${pl.fiveBonus ? '+' + pl.fiveBonus : '\u2014'}</td>`).join('')}</tr>
       <tr class="grand"><td>Total</td>${T.map(t => `<td class="v">${t.total}</td>`).join('')}</tr>
     </tbody>`;
   }
@@ -1796,7 +1796,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
       railLayout();
     }
     if (rolling && !wasRolling) tick(3000, .35, 6);
-    if (wasRolling && !rolling && state.rolled && Math.max(...counts(vals())) === 5) { flash('Five of a kind!'); confetti(); chime(true); }
+    if (wasRolling && !rolling && state.rolled && Math.max(...counts(vals())) === 5) { flash('Yahtzee!'); confetti(); chime(true); }
     if (!state.over && prev && prev.mode === 'online' && prevCur !== state.cur && (state.round > 1 || state.cur > 0)) flash(myTurn() ? 'Your turn' : "Opponent's turn");
     if (!wasOver && state.over) finish();
     if (!state.over && !$('over').hidden) $('over').hidden = true;
