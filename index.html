@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261127140000">
+<meta name="pips-build" content="20261127150000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -88,7 +88,7 @@ button { font: inherit; color: inherit; }
      (about a status bar short of the screen), so the bottom margin would only add a gap */
   html.short-view body { padding-bottom: 0; }
   html.short-view .app { padding-bottom: 6px; }
-  .stage { touch-action: none; }
+  .stage { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(150px, .82fr); /* scorecard a bit narrower: more room for the tray */ grid-template-rows: minmax(0, 1fr); gap: 10px; margin-top: 10px; align-items: stretch; }
   .table { position: static; display: flex; flex-direction: column; min-height: 0; }
   .card { min-height: 0; overflow: auto; overscroll-behavior: contain; border-radius: 14px; padding: 0 2px 6px; -webkit-overflow-scrolling: touch; }
@@ -527,6 +527,11 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
       lastEnd = now;
     }, { passive: false });
     ['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+    document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+    // The dice tray takes every touch itself (the game reads taps through pointer events, which still fire),
+    // so Safari never gets to treat quick taps on the dice as a double-tap zoom.
+    const tray = document.getElementById('stage');
+    if (tray) tray.addEventListener('touchstart', e => { if (e.cancelable && !e.target.closest('button, a, input')) e.preventDefault(); }, { passive: false });
     document.addEventListener('touchmove', e => { if (e.touches.length > 1 && e.cancelable) e.preventDefault(); }, { passive: false });
   })();
   let state, rolling = false, hintIdx = [], pickN = store.get('pips-mode', 'bot'), botActing = false, botMsg = '', gameId = 0, settleWaiters = [];
