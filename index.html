@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261127120000">
+<meta name="pips-build" content="20261127130000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -286,7 +286,10 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
 .seg button[aria-checked="true"] { border-color: var(--brass); background: rgba(220,171,85,.1); color: var(--brass); }
 .row { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 .panel .roll { min-width: 0; padding: 12px 24px; font-size: 14px; }
-.invlink input { width: 100%; font-family: var(--mono); font-size: 13px; color: var(--text); background: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; margin-bottom: 12px; }
+.invlink { display: flex; gap: 8px; align-items: stretch; margin-bottom: 12px; }
+.invlink .ghost { flex: none; border-radius: 10px; padding: 0 14px; font-size: 13px; min-width: 72px; }
+.invlink .ghost.done { border-color: var(--brass); color: var(--brass); }
+.invlink input { flex: 1 1 auto; min-width: 0; font-family: var(--mono); font-size: 13px; color: var(--text); background: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; }
 .invstatus { font-size: 13px; color: var(--brass) !important; display: flex; align-items: center; gap: 8px; }
 .invstatus::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: blink 1.2s ease-in-out infinite; flex: none; }
 .invstatus.err { color: var(--zero) !important; }
@@ -433,7 +436,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
   <div class="panel" role="dialog" aria-modal="true" aria-labelledby="inviteTitle">
     <h3 id="inviteTitle">Play a friend online</h3>
     <p id="inviteText">Send this link to your opponent. The game starts as soon as they open it on their phone.</p>
-    <div class="invlink" id="inviteBox" hidden><input id="inviteLink" readonly aria-label="Invite link"></div>
+    <div class="invlink" id="inviteBox" hidden><input id="inviteLink" readonly aria-label="Invite link"><button class="ghost" id="inviteCopy" type="button">Copy</button></div>
     <p class="invstatus" id="inviteStatus">Setting up a game room&#x2026;</p>
     <div class="row">
       <button class="ghost" id="inviteCancel">Cancel</button>
@@ -1540,6 +1543,18 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
   });
   $('overAgain').addEventListener('click', () => { $('over').hidden = true; startGame(state.mode); });
   $('inviteCancel').addEventListener('click', () => { $('invite').hidden = true; if (!net.connected) { leaveOnline(); startGame(store.get('pips-mode', 'bot')); } });
+  // Copy button next to the invite link. Clipboard API first; the select-and-copy fallback covers older browsers.
+  $('inviteCopy').addEventListener('click', async () => {
+    const el = $('inviteLink'), btn = $('inviteCopy');
+    let ok = false;
+    try { await navigator.clipboard.writeText(el.value); ok = true; } catch (e) {}
+    if (!ok) { try { el.focus(); el.select(); el.setSelectionRange(0, el.value.length); ok = document.execCommand('copy'); } catch (e) {} }
+    if (ok) {
+      btn.textContent = 'Copied'; btn.classList.add('done');
+      inviteStatus('Link copied. Paste it in a text to your opponent.');
+      clearTimeout(btn._t); btn._t = setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1800);
+    } else { el.select(); inviteStatus('Press and hold the link above to copy it.'); }
+  });
   $('inviteShare').addEventListener('click', async () => {
     const url = $('inviteLink').value;
     try { if (navigator.share) { await navigator.share({ title: 'Play Pips with me', text: 'Join my Pips dice game:', url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
@@ -1586,7 +1601,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
     iceTransportPolicy: new URLSearchParams(location.search).has('relay') && RELAY.length ? 'relay' : 'all', // ?relay forces the relay, for testing
   };
   const peerOpts = () => ({ config: ICE, debug: 0 });
-  const SLOW_HELP = 'Still connecting\u2026 Phone-to-phone links are sometimes blocked on cellular data. If it doesn\u2019t connect soon, put both phones on Wi-Fi.';
+  const SLOW_HELP = RELAY.length ? 'Still connecting\u2026 This can take a little longer on some networks.' : 'Still connecting\u2026 Some networks block direct phone-to-phone links. If it doesn\u2019t connect soon, try both phones on the same Wi-Fi.';
   const ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const newCode = () => Array.from({ length: 5 }, () => ALPH[Math.floor(Math.random() * ALPH.length)]).join('');
   function inviteStatus(text, err) { const el = $('inviteStatus'); el.textContent = text; el.classList.toggle('err', !!err); }
