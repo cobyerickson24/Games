@@ -2,7 +2,7 @@
 
 A five-dice scoring game (Yahtzee-style) with real 3D physics dice, built as a single-page web app that installs on a phone like a native app.
 
-**Play it:** https://cobyerickson24.github.io/Pips/
+**Play it:** https://cobyerickson24.github.io/pips/
 
 ## Features
 
