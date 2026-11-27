@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="description" content="Pips: a five-dice scoring game with 3D physics dice. Play solo, against the computer, or pass-and-play.">
 <meta name="theme-color" content="#0e141c">
-<meta name="pips-build" content="20261127150000">
+<meta name="pips-build" content="20261127160000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -289,7 +289,7 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
 .invlink { display: flex; gap: 8px; align-items: stretch; margin-bottom: 12px; }
 .invlink .ghost { flex: none; border-radius: 10px; padding: 0 14px; font-size: 13px; min-width: 72px; }
 .invlink .ghost.done { border-color: var(--brass); color: var(--brass); }
-.invlink input { flex: 1 1 auto; min-width: 0; font-family: var(--mono); font-size: 13px; color: var(--text); background: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; }
+.invlink input { flex: 1 1 auto; min-width: 0; font-family: var(--mono); font-size: 16px; /* 16px+ or iPhone zooms in on focus */ color: var(--text); background: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; }
 .invstatus { font-size: 13px; color: var(--brass) !important; display: flex; align-items: center; gap: 8px; }
 .invstatus::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: blink 1.2s ease-in-out infinite; flex: none; }
 .invstatus.err { color: var(--zero) !important; }
@@ -518,14 +518,19 @@ tr.cat.pick .pot { opacity: 1; background: var(--brass); color: #1d1505; border-
 
   // No zooming: tapping dice quickly made iPhone Safari zoom in. Safari ignores the viewport's no-zoom setting,
   // so block its pinch gesture and treat a second tap within 350 ms as a tap, not a double-tap zoom.
-  // Buttons and the link box are left alone: they never zoom and need every tap.
+  // Text boxes are left alone so they can still be selected.
   (() => {
     let lastEnd = 0;
     document.addEventListener('touchend', e => {
-      const now = e.timeStamp;
-      if (now - lastEnd < 350 && e.cancelable && !e.target.closest('button, input, a, textarea, select')) e.preventDefault();
+      const now = e.timeStamp, quick = now - lastEnd < 350;
       lastEnd = now;
+      if (!quick || !e.cancelable || e.touches.length || e.target.closest('input, textarea, select')) return;
+      e.preventDefault(); // no double-tap zoom, anywhere
+      // cancelling the tap also cancels its click, so deliver it ourselves: quick taps on buttons still count
+      const t = e.target.closest('button, a, label, [role="button"]');
+      if (t && !t.disabled) t.click();
     }, { passive: false });
+    document.addEventListener('touchstart', e => { if (e.touches.length > 1 && e.cancelable) e.preventDefault(); }, { passive: false }); // pinch
     ['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
     document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
     // The dice tray takes every touch itself (the game reads taps through pointer events, which still fire),
